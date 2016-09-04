@@ -16,3 +16,16 @@ clienr/server両方をプラグイン化できます。
 - コードジェネレータ
 - モデルインポータ・エクスポータ
 
+
+
+## build
+
+```
+gulp watch
+```
+
+## start server
+
+```
+node app
+```
