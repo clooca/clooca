@@ -1,0 +1,40 @@
+{
+	"id": "bookstore",
+	"name": "Book Store",
+	"root": "bookstore.bookstorediagram",
+	"classes": {
+		"bookstore.bookstorediagram": {
+			"id": "bookstore.bookstorediagram",
+			"type": "classdiagram.classdiagram",
+			"properties": {
+				"name": "bookstorediagram"
+			},
+			"relations": {
+				"book": {
+					"id": "bookstore.book"
+				}
+			}
+		},
+		"bookstore.book": {
+			"id": "bookstore.book",
+			"type": "classdiagram.package",
+			"properties": {
+				"name": "book"
+			},
+			"relations": {
+				"order": {
+					"id": "bookstore.order"
+				}
+			}
+		},
+		"bookstore.order": {
+			"id": "bookstore.order",
+			"type": "classdiagram.package",
+			"properties": {
+				"name": "order"
+			},
+			"relations": {
+			}
+		}
+	}
+}

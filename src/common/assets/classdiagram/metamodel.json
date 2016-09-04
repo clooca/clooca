@@ -1,0 +1,69 @@
+{
+	"id": "classdiagram",
+	"name": "Class Diagram",
+	"classes": {
+		"classdiagram.classdiagram": {
+			"id": "classdiagram.classdiagram",
+			"type": "metametamodel.class",
+			"properties": {
+				"name": "classdiagram",
+				"properties": {
+					"name": {
+						"name": "name",
+						"type": "string",
+						"lower": 1,
+						"upper": 1
+					}
+				}
+			},
+			"relations": {
+				"haspackages1": {
+					"id": "haspackages1"
+				}
+			}
+		},
+		"haspackages1": {
+			"id": "classdiagram.haspackages1",
+			"type": "metametamodel.association",
+			"properties": {
+				"name": "haspackages1",
+				"source": "classdiagram.classdiagram",
+				"target": "classdiagram.package",
+				"containment": true,
+				"lower": 0,
+				"upper": -1
+			}
+		},
+		"classdiagram.package": {
+			"id": "classdiagram.package",
+			"type": "metametamodel.class",
+			"properties": {
+				"name": "package",
+				"properties": {
+					"name": {
+						"name": "name",
+						"type": "string",
+						"lower": 1,
+						"upper": 1
+					}
+				}
+			},
+			"relations": {
+				"haspackages2": {
+					"id": "haspackages2"
+				}
+			}
+		},
+		"haspackages2": {
+			"id": "classdiagram.haspackages2",
+			"type": "metametamodel.association",
+			"properties": {
+				"name": "haspackages2",
+				"target": "classdiagram.package",
+				"containment": true,
+				"lower": 0,
+				"upper": -1
+			}
+		}
+	}
+}

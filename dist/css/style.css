@@ -1,0 +1,98 @@
+html, body{
+	margin: 0;
+	padding: 0;
+	height: 100%;
+	width: 100%;
+}
+
+.core-pluginmenu {
+	float: left;
+	width: 120px;
+	margin: 8px;
+	padding: 6px;
+	border: solid 1px #555;
+}
+
+.core-main {
+	float: left;
+	margin: 8px;
+	border: solid 1px #555;
+}
+
+.plugin-item {
+	cursor: pointer;
+	font-size: 14px;
+}
+
+.plugin-item:hover {
+	background-color: #e7fff0;
+}
+
+/*Loading Animation*/
+
+.loading-animation
+{
+    width:100px;
+    margin:auto;
+}
+.loading-animation .balls div
+{
+
+    background-color:#005AA2;
+    width:20px;
+    height:20px;
+    border-radius:15px;
+    display:inline-block;
+    margin:-2px;
+    padding:0;
+
+}
+
+.loading-animation .balls div:first-child
+{
+    -webkit-animation: first-ball ease-in-out 1s infinite;
+    animation: first-ball ease-in-out 1s infinite;
+}
+
+@keyframes first-ball
+{
+    15%
+    {
+        transform: rotate(36deg) translateX(-40px);
+    }
+    25%
+    {
+        transform: rotate(45deg) translateX(-50px);
+    }
+    50%
+    {
+        transform: rotate(0deg) translateX(0px);
+    }
+}
+
+.loading-animation .balls div:last-child
+{
+    -webkit-animation: last-ball ease-in-out 1s infinite;
+    -webkit-animation-delay: 0.5s;
+    animation: last-ball ease-in-out 1s infinite;
+    animation-delay: 0.5s;
+}
+
+@keyframes last-ball
+{
+    15%
+    {
+        transform: rotate(-36deg) translateX(40px);
+    }
+    25%
+    {
+        transform: rotate(-45deg) translateX(50px);
+    }
+    50%
+    {
+        transform: rotate(0deg) translateX(0px);
+    }
+}
+
+/*End of Loading Animation*/
+

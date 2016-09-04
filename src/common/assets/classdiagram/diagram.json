@@ -1,0 +1,30 @@
+{
+    "id": "classdiagram",
+    "name": "Class Diagram",
+    "classes": {
+        "classdiagram":{
+            "id": "classdiagram.classdiagram",
+            "type": "editor.diagram"
+        },
+        "package": {
+            "id": "packagenode",
+            "type": "editor.node",
+            "properties": {
+                "name": "package"
+            },
+            "relations": {
+                "order": "order"
+            }
+        },
+        "haspackage": {
+            "id": "haspackage",
+            "type": "editor.edge",
+            "properties": {
+                "name": "package"
+            },
+            "relations": {
+                "order": "order"
+            }
+        }
+    }
+}
