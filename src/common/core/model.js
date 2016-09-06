@@ -1,3 +1,4 @@
+var Ecore = require('ecore');
 var uuid = require('uuid');
 var Promise = require('promise');
 var createServer = require('./cc');
@@ -53,14 +54,24 @@ ModelInterface.prototype.on = function(event, cb) {
 	this.server.on(event, cb);
 };
 
-ModelInterface.prototype.load = function(model) {
-	this.server.load(model);
+ModelInterface.prototype.loadMetaModel = function(model) {
+	return this.server.loadMetaModel(model);
 };
 
-function ModelServer(metamodel) {
+ModelInterface.prototype.loadModel = function(model) {
+	return this.server.loadModel(model);
+};
+
+ModelInterface.prototype.getRawModel = function() {
+	return this.server.model;
+};
+
+
+function ModelServer() {
 	var self = this;
+	this.resourceSet = Ecore.ResourceSet.create();
+
 	this.server = createServer();
-	this.metamodel = metamodel;
 	this.classes = {};
 	this.server.on('model.createInstance', function(info) {
 		var instaceId = info.instaceId || uuid();
@@ -92,6 +103,39 @@ function ModelServer(metamodel) {
 	});
 }
 
+ModelServer.prototype.loadMetaModel = function(metamodel) {
+	var self = this;
+	return new Promise(function(resolve, reject) {
+		var callback = function(model, err) {
+		    if (err) {
+		    	reject(err);
+		        return;
+		    }
+		    self.metamodel = model;
+			self.fireUpdate();
+			resolve(model);
+		};
+		self.resourceSet.create({ uri: 'classdiagram' }).load(metamodel, callback);
+	})
+}
+
+ModelServer.prototype.loadModel = function(model) {
+	var self = this;
+	return new Promise(function(resolve, reject) {
+		var callback = function(model, err) {
+		    if (err) {
+		    	reject(err);
+		        return;
+		    }
+		    self.model = model;
+			self.fireUpdate();
+			resolve(model);
+		};
+		self.resourceSet.create({ uri: 'model.json' }).load(model, callback);
+	});
+}
+
+
 ModelServer.prototype.emit = function(event, args) {
 	this.server.emit(event, args);
 }
@@ -119,16 +163,9 @@ ModelServer.prototype.query = function(query) {
 	});
 }
 
-ModelServer.prototype.load = function(model) {
-	this.classes = model.classes;
-	this.root = model.root;
-	this.fireUpdate();
-}
-
 ModelServer.prototype.fireUpdate = function(model) {
 	this.server.emit('update', {
-		root: this.root,
-		classes: this.classes
+		model : this.model
 	});
 }
 

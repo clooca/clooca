@@ -32,7 +32,6 @@ let ExplorerItem = React.createClass({
     var modelInterface = clooca.getModelInterface();
     var metamodelInterface = clooca.getMetaModelInterface();
 
-    console.log(target.type);
   	metamodelInterface.getInstance(target.type).then(function(metaClass) {
   		var association = Object.keys(metaClass.relations)[0];
 	  	modelInterface.createInstance(target.id, association, {});
@@ -42,21 +41,19 @@ let ExplorerItem = React.createClass({
   },
 
   render: function () {
-  	var model = this.props.model;
-  	var classes = model.classes;
   	var offset = this.props.depth || 0;
   	var style = {
   		"marginLeft": offset+"px"
   	}
-  	var ExplorerItems = this.toArray(this.props.class.relations).map(function(relation) {
-  		return classes[relation.id];
-  	}).map(function(_class) {
-  		return (<ExplorerItem key={_class.id} depth={offset+12} model={model} class={_class}></ExplorerItem>)
-  	})
+  	var ExplorerItems = !!(this.props.class.get("classes"))?(this.props.class.get("classes").map(function(_class) {
+  		return (<ExplorerItem key={_class.get('name')} depth={offset+12} class={_class}></ExplorerItem>)
+  	})) : [];
+
+    console.log(this.props.class.get('name'));
 
     return (
     	<div style={style}>
-	    	<div onClick={this.onClick}>{this.props.class.properties.name}</div>
+	    	<div onClick={this.onClick}>{this.props.class.get('name')}</div>
 	    	<div>{ExplorerItems}</div>
     	</div>
     );

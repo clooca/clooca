@@ -7126,6 +7126,2533 @@ function extend() {
 }
 
 },{}],37:[function(require,module,exports){
+//     Ecore.js
+//     Ecore Implementation in JavaScript.
+//
+//     ©2014 Guillaume Hillairet.
+//     EPL License (http://www.eclipse.org/legal/epl-v10.html)
+
+(function() {
+
+"use strict";
+
+// The root object, `window` in the browser, or `global` on the server.
+var root = this;
+
+// Load underscore from the `window` object in the browser or via the require function
+// on the server.
+var _ = root._;
+if (!_ && (typeof require !== 'undefined')) _ = require('underscore');
+
+
+// Ecore
+
+// Base object providing common methods for the creation of model elements such as
+// `EPackage`, `EClass`, `EDataType`, `EAttribute` and `EReference`. As well as the
+// method `create` for the creation of domain objects, `EObject`, from a predefined
+// `EClass`.
+
+var Ecore = {
+
+    // Returns an instance of the given EClass.
+    //
+    // The resulting object is an EObject having it's properties
+    // initialized from the structural features of the EClass.
+    //
+    // Example:
+    //
+    //      var User = Ecore.EClass.create({
+    //          name: 'User',
+    //          eStructuralFeatures: [
+    //              {
+    //                  eClass: Ecore.EAttribute,
+    //                  name: 'userName',
+    //                  eType: Ecore.EString
+    //              }
+    //          ]
+    //      });
+    //
+    //      var u1 = Ecore.create(User);
+    //      u1.set('userName', 'Randy');
+    //
+    //      alternatively
+    //
+    //      var u1 = User.create({ userName: 'Randy' });
+    //
+    //      u1.get('userName'); -> Randy
+
+    create: function(eClass, attributes) {
+        var attrs,
+            eObject;
+
+        if (!attributes) {
+            if (eClass instanceof EObject) {
+                attrs = {};
+                attrs.eClass = eClass;
+            } else {
+                attrs = eClass;
+            }
+        } else {
+            attrs = attributes;
+            attrs.eClass = attributes.eClass || eClass;
+        }
+
+        if (!attrs.eClass || attrs.eClass.get('abstract')) {
+            throw new Error('Cannot create EObject from undefined or abstract EClass');
+        }
+
+        eObject = new EObject( attrs );
+
+        return eObject;
+    }
+
+};
+
+// Export Ecore
+if (typeof exports !== 'undefined') {
+    if (typeof module !== 'undefined' && module.exports) {
+        exports = module.exports = Ecore;
+    }
+    exports.Ecore = Ecore;
+} else {
+    root.Ecore = Ecore;
+}
+
+var Events = {
+
+    on: function(events, callback, context) {
+        var calls, event, list;
+        if (!callback) return this;
+
+        events = events.split(/\s+/);
+        calls = this._callbacks || (this._callbacks = {});
+
+        while(event = events.shift()) {
+            list = calls[event] || (calls[event] = []);
+            list.push(callback, context);
+        }
+
+        return this;
+    },
+
+    off: function(events, callback, context) {
+        var event, calls, list, i;
+
+        if (!(calls = this._callbacks)) return this;
+        if (!(events || callback || context)) {
+            delete this._callbacks;
+            return this;
+        }
+
+        events = events ? events.split(/\s+/) : _.keys(calls);
+        while (event = events.shift()) {
+            if (!(list = calls[event]) || !(callback || context)) {
+                delete calls[event];
+                continue;
+            }
+
+            for (i = list.length - 2; i >= 0; i -= 2) {
+                if (!(callback && list[i] !== callback || context && list[i + 1] !== context)) {
+                    list.splice(i, 2);
+                }
+            }
+        }
+
+        return this;
+    },
+
+    trigger: function(events) {
+        var event, calls, list, i, length, args, all, rest;
+        if (!(calls = this._callbacks)) return this;
+
+        rest = [];
+        events = events.split(/\s+/);
+        for (i = 1, length = arguments.length; i < length; i++) {
+            rest[i - 1] = arguments[i];
+        }
+        // For each event, walk through the list of callbacks twice, first to
+        // trigger the event, then to trigger any `"all"` callbacks.
+        while (event = events.shift()) {
+            if (all = calls.all) all = all.slice();
+            if (list = calls[event]) list = list.slice();
+
+            if (list) {
+                for (i = 0, length = list.length; i < length; i += 2) {
+                    list[i].apply(list[i + 1] || this, rest);
+                }
+            }
+            // Execute "all" callbacks.
+            if (all) {
+                args = [event].concat(rest);
+                for (i = 0, length = all.length; i < length; i += 2) {
+                    all[i].apply(all[i + 1] || this, args);
+                }
+            }
+        }
+
+        return this;
+    }
+};
+
+// EObject
+//
+// Implementation of EObject. The constructor takes as parameter a hash
+// containing values to be set. Values must be defined accordingly to the
+// eClass features.
+//
+
+var EObject = function(attributes) {
+    if (!attributes) attributes = {};
+
+    this.eClass = attributes.eClass;
+    this.values = {};
+
+    // stores function for eOperations.
+    attributes._ && (this._ = attributes._);
+
+    // Initialize values according to the eClass features.
+    initValues(this);
+    setValues(this, attributes);
+    initOperations(this);
+
+    return this;
+};
+
+function initValues(eObject) {
+    var eClass = eObject.eClass;
+    if (!eClass) return;
+
+    var eStructuralFeatures = eClass.get('eAllStructuralFeatures');
+    _.each(eStructuralFeatures, function(eFeature) {
+        initValue(eObject, eFeature);
+    });
+}
+
+function initValue(eObject, eFeature) {
+    if (!eObject || !eFeature) return;
+
+    var featureName = eFeature.get('name'),
+        defaultValue = eFeature.values.defaultValue,
+        upperBound = eFeature.get('upperBound'),
+        isDerived = eFeature.values.derived === true,
+        isContainment = eFeature.values.containment === true,
+        value = eObject.values[featureName];
+
+    var setDefaultUniqueValue = function() {
+        var _default;
+        if (defaultValue === null || defaultValue === undefined) {
+            _default = null;
+        } else if (defaultValue === 0) {
+            _default = 0;
+        } else if (defaultValue === false) {
+            _default = false;
+        } else {
+            _default = defaultValue;
+        }
+        return _default;
+    };
+
+    if (value === null || value === undefined) {
+        if (isDerived) {
+            eObject.values[featureName] = eFeature.values._;
+        } else if (upperBound === 1 || !upperBound) {
+            eObject.values[featureName] = setDefaultUniqueValue();
+        } else if (value instanceof Ecore.EList) {
+            value._setFeature(eFeature);
+        } else if (eFeature.isTypeOf('EAttribute')) {
+            eObject.values[featureName] = [];
+        } else {
+            eObject.values[featureName] = new Ecore.EList(eObject, eFeature);
+        }
+    }
+}
+
+function getEStructuralFeature(eClass, featureName) {
+    return _.find(eClass.get('eAllStructuralFeatures'), function(feature) {
+        return feature.values.name === featureName;
+    });
+}
+
+function setValues(eObject, attributes) {
+    if (!eObject.eClass) return;
+
+    var getOrCreate = function(eType, value) {
+        if (typeof value === 'function') return value;
+        if (value instanceof EObject) return value;
+        return Ecore.create(eType, value);
+    };
+
+    var createSingle = function(key, value, isReference, eType) {
+        if (isReference) {
+            eObject.set(key, getOrCreate(eType, value));
+        } else {
+            eObject.set(key, value);
+        }
+    };
+
+    var createMany = function(key, value, isReference, eType) {
+        var values = _.isArray(value) ? value : [value];
+        _.each(values, function(current) {
+            if (isReference) {
+                eObject.get(key).add(getOrCreate(eType, current));
+            } else {
+                eObject.get(key).push(current);
+            }
+        });
+    };
+
+    _.each(attributes, function(value, key) {
+        var eFeature = getEStructuralFeature(this.eClass, key),
+            values = [];
+
+        if (eFeature && value !== undefined) {
+            if (eFeature.get('upperBound') === 1) {
+                createSingle(key, value, eFeature.eClass === Ecore.EReference, eFeature.get('eType'));
+            } else {
+                createMany(key, value, eFeature.eClass === EReference, eFeature.get('eType'));
+            }
+        }
+    }, eObject);
+}
+
+function eAllOperations(eClass) {
+    var eOperations = eClass.get('eOperations').array();
+    var superTypes = eClass.get('eAllSuperTypes');
+    return _.flatten(_.union(eOperations || [], _.map(superTypes || [], function(s) {
+        return eAllOperations(s);
+    })));
+}
+
+function initOperations(eObject) {
+    if (!eObject || !eObject.eClass) return;
+
+    var eOperations = eAllOperations(eObject.eClass);
+    if (!eOperations) return;
+
+    _.each(eOperations, function(op) {
+        eObject[op.get('name')] = op._;
+    });
+}
+
+
+// EObjectPrototype
+//
+// Prototype object for EObject and EModelElements.
+
+Ecore.EObjectPrototype = {
+
+    setEClass: function(eClass) {
+        this.eClass = eClass;
+        initValues(this);
+        setValues(this, this.values);
+        initOperations(this);
+
+        return this;
+    },
+
+    create: function(attributes) {
+        if (this.eClass.get('name') !== 'EClass') return;
+
+        return Ecore.create(this, attributes);
+    },
+
+    // Returns true if property if a feature of the EObject.
+    //
+    //      @method has
+    //      @param {String} name
+    //      @return {Boolean}
+
+    has: function(name) {
+        return this.values.hasOwnProperty(name) || getEStructuralFeature(this.eClass, name);
+    },
+
+    // Returns true if property has its value set.
+    //
+    //      @method isSet
+    //      @param {String} name
+    //      @return {Boolean}
+
+    isSet: function(name) {
+        if (!this.has(name)) return false;
+
+        var eClass = this.eClass;
+        if (!eClass) return false;
+
+        var value = this.get(name);
+        if (value instanceof EList) {
+            return value.size() > 0;
+        } else {
+            return value !== null && typeof value !== 'undefined';
+        }
+    },
+
+    // Setter for the property identified by the first parameter.
+    //
+    //      @method set
+    //      @param {String} name
+    //      @param {Object} value
+    //      @return {EObject}
+
+    set: function(attrs, options) {
+        var attr, key, val, eve;
+        if (attrs === null) return this;
+
+        if (attrs.eClass) {
+            attrs = attrs.get('name');
+        }
+
+        // Handle attrs is a hash or attrs is
+        // property and options the value to be set.
+        if (!_.isObject(attrs)) {
+            key = attrs;
+            (attrs = {})[key] = options;
+        }
+
+        var eResource = this.eResource();
+
+        for (attr in attrs) {
+            val = attrs[attr];
+            if (typeof val !== 'undefined' && this.has(attr)) {
+                if (this.isSet(attr)) {
+                    this.unset(attr);
+                }
+
+                var feature = getEStructuralFeature(this.eClass, attr),
+                    isContainment = feature.get('containment');
+
+                var settingContainmentAttribute = (attr === 'containment') && (typeof(val) === 'string') && (this.eClass.values.name === 'EReference');
+                if (settingContainmentAttribute) {
+                    // Convert string 'true' to boolean true
+                    val = (val.toLowerCase() === 'true');
+                }
+
+                this.values[attr] = val;
+
+                if (isContainment) {
+                  val.eContainingFeature = feature;
+                  val.eContainer = this;
+                }
+                eve = 'change:' + attr;
+                this.trigger('change ' + eve, attr);
+                if (eResource) eResource.trigger('change', this);
+            }
+        }
+
+        return this;
+    },
+
+    // Unset for the property identified by the first parameter.
+    //
+    //      @method unset
+    //      @param {String} name
+    //      @return {EObject}
+    unset: function(attrs, options) {
+
+        var attr, key, eve;
+        if (attrs === null) return this;
+
+        if (attrs.eClass) {
+            attrs = attrs.get('name');
+        }
+
+        // Handle attrs is a hash or attrs is
+        // property and options the value to be set.
+        if (!_.isObject(attrs)) {
+            key = attrs;
+            (attrs = {})[key] = undefined;
+        }
+
+        var eResource = this.eResource();
+
+        for (attr in attrs) {
+            if (this.has(attr) && this.isSet(attr)) {
+              // unset
+
+              var feature = getEStructuralFeature(this.eClass, attr),
+                  isContainment = Boolean(feature.get('containment')) === true;
+              var value = this.values[attr];
+
+                if (isContainment) {
+                  value.eContainingFeature = undefined;
+                  value.eContainer = undefined;
+                }
+              this.values[attr] = undefined;
+              eve = 'unset:' + attr;
+              this.trigger('unset ' + eve, attr);
+              if (eResource) eResource.trigger('change', this);
+            }
+        }
+
+        return this;
+    },
+
+
+
+    // Getter for the property identified by the first parameter.
+    //
+    //      @method get
+    //      @param {EStructuralFeature} feature
+    //      or
+    //      @param {String} feature name
+    //      @return {Object}
+
+    get: function(feature) {
+        if (!feature) return null;
+
+        var featureName = feature.eClass ? feature.get('name') : feature;
+
+        if (!_.has(this.values, featureName) && this.has(featureName)) {
+            initValue(this, getEStructuralFeature(this.eClass, featureName));
+        }
+
+        var value = this.values[featureName];
+
+        if (typeof value === 'function') {
+            return value.apply(this);
+        } else {
+            return value;
+        }
+    },
+
+    // Returns true if the EObject is a direct instance of the EClass.
+    //
+    //      @method isTypeOf
+    //      @param {String} type
+    //      @return {Boolean}
+
+    isTypeOf: function(type) {
+        if (!type || !this.eClass) return false;
+
+        var typeName = type.eClass ? type.get('name') : type;
+
+        return this.eClass.get('name') === typeName;
+    },
+
+    // Returns true if the EObject is an direct instance of the EClass or
+    // if it is part of the class hierarchy.
+    //
+    //      @method isKindOf
+    //      @param {String}
+    //      @return {Boolean}
+
+    isKindOf: function(type) {
+        if(!type || !this.eClass) return false;
+        if (this.isTypeOf(type)) return true;
+
+        var typeName = type.eClass ? type.get('name') : type,
+            superTypes = this.eClass.get('eAllSuperTypes');
+
+        return _.any(superTypes, function(eSuper) {
+            return eSuper.get('name') === typeName;
+        });
+    },
+
+    // Returns the Resource containing the EObject.
+    //
+    //      @method eResource
+    //      @return {Resource}
+
+    eResource: function() {
+        if (this.isKindOf('Resource')) return this;
+        if (!this.eContainer) return null;
+        if (this.eContainer.isKindOf('Resource')) return this.eContainer;
+
+        return this.eContainer.eResource();
+    },
+
+    // Returns the content of an EObject.
+    //
+    //      @method eContents
+    //      @return {Array}
+
+    eContents: function() {
+        if (!this.eClass) return [];
+
+        if (_.isUndefined(this.__updateContents)) {
+            this.__updateContents = true;
+
+            var resource = this.eResource();
+            if (resource) {
+                var me = this;
+                resource.on('add remove', function() {
+                    me.__updateContents = true;
+                })
+            }
+        }
+
+        if (this.__updateContents) {
+            var eAllFeatures    = this.eClass.get('eAllStructuralFeatures');
+            var eContainments   = _.filter(eAllFeatures, function(feature) {
+                return feature.isTypeOf('EReference') &&
+                    feature.get('containment') &&
+                    this.isSet(feature.get('name'));
+            }, this);
+
+            var value = null;
+            this.__eContents = _.flatten(_.map(eContainments, function(c) {
+                value = this.get(c.get('name'));
+                return value ? (value.array ? value.array() : value) : [];
+            }, this));
+
+            this.__updateContents = false;
+        }
+
+        return this.__eContents;
+    },
+
+    // Returns the URI of the EObject.
+    //
+    // URI is made of the containing Resource URI and EObject
+    // identifier has fragment.
+    //
+    //      @method eURI
+    //      @return {String}
+    //
+
+    eURI: function() {
+    	
+    	// It's possible the adjustments for the id map need to made 
+    	// in the fragment function as the fragment should be the xmi id.
+        var eModel = this.eResource();
+        
+        return (eModel? eModel.get('uri') : '') + '#' + this.fragment();
+        
+    },
+
+    // Returns the fragment identifier of the EObject.
+    //
+    //      @return {String}
+
+    fragment: function() {
+        var eContainer = this.eContainer,
+            eClass = this.eClass,
+            iD = eClass.get('eIDAttribute'),
+            eFeature,
+            contents,
+            fragment;
+
+        // Must be at least contain in a Resource or EObject.
+        if (!eContainer) return null;
+
+        // Use ID has fragment
+        if (iD) return this.get(iD.get('name'));
+
+        if (this._id) return this._id;
+
+        // ModelElement uses names except for roots
+        if (this.isKindOf('EModelElement')) {
+            if (!eContainer) {
+                return '/';
+            } else if (eContainer.isKindOf('Resource')) {
+                contents = eContainer.get('contents');
+                return contents.size() > 1 ? '/' + contents.indexOf(this) : '/';
+            } else {
+                return eContainer.fragment() + '/' + this.get('name');
+            }
+        }
+
+        // Default fragments
+        if (eContainer.isKindOf('Resource')) {
+            contents = eContainer.get('contents');
+            fragment = contents.size() > 1 ? '/' + contents.indexOf(this) : '/';
+        } else {
+            eFeature = this.eContainingFeature;
+            if (eFeature) {
+                fragment = eContainer.fragment() + '/@' + eFeature.get('name');
+                if (eFeature.get('upperBound') !== 1) {
+                    fragment += '.' + eContainer.get(eFeature.get('name')).indexOf(this);
+                }
+            }
+        }
+
+        return fragment;
+    }
+};
+
+_.extend(EObject.prototype, Ecore.EObjectPrototype, Events);
+
+// EList, A List implementation.
+//
+//      @param {EObject} owner - the owner of the feature.
+//      @param {EStructuralFeature} feature - the feature associated.
+
+var EList = Ecore.EList = function(owner, feature) {
+    this._internal = [];
+    this._owner = owner;
+    this._size = 0;
+    this._setFeature(feature);
+
+    return this;
+};
+
+EList.prototype = {
+
+    //  @private
+
+    _setFeature: function(feature) {
+        if (feature) {
+            this._feature = feature;
+            this._isContainment = this._feature.get('containment');
+
+            _.each(this._internal, function(e) {
+                if (this._isContainment) {
+                    e.eContainer = this._owner;
+                    e.eContainingFeature = this._feature;
+                }
+            }, this);
+        }
+    },
+
+
+    // Adds an EObject.
+    //
+    // @method add
+    // @public
+    // @param {EObject} eObject
+    //
+
+    add: function(eObject) {
+        if (!eObject || !eObject instanceof EObject) return this;
+
+        if (this._isContainment) {
+            eObject.eContainingFeature = this._feature;
+            eObject.eContainer = this._owner;
+        }
+
+        this._size++;
+        this._internal.push(eObject);
+
+        var eResource = this._owner.eResource(),
+            eve = 'add';
+
+        if (this._feature) eve += ':' + this._feature.get('name');
+        this._owner.trigger(eve, eObject);
+        if (eResource) eResource.trigger('add', this);
+
+        return this;
+    },
+
+    // Adds an array
+    //
+    //      @param {EObject}
+    //      @param {Array}
+
+    addAll: function() {
+        _.each(_.flatten(arguments || []), function(value) {
+            this.add(value);
+        }, this);
+
+        return this;
+    },
+
+    // Removes given element from the EList
+    //
+    // @public
+    // @param {EObject}
+
+    remove: function(eObject) {
+        var eve = 'remove',
+            eResource = this._owner.eResource();
+
+        this._internal = _.without(this._internal, eObject);
+        this._size = this._size - 1;
+        if (this._feature) eve += ':' + this._feature.get('name');
+        this._owner.trigger(eve, eObject);
+        if (eResource) eResource.trigger('remove', this);
+
+        return this;
+    },
+
+    clear: function() {
+        var array = this.array();
+        for (var i = 0; i < array.length; i++) {
+            this.remove(array[i]);
+        }
+        return this;
+    },
+
+    // Returns the size of the EList
+    //
+    //      @public
+    //      @returns {Integer}
+
+    size: function() {
+        return this._size;
+    },
+
+    // Returns the elment at given index
+    //
+    //      @public
+    //      @param {integer}
+    //      @returns {EObject}
+
+    at: function(position) {
+        if (this._size < position) {
+            throw new Error('Index Out Of Range');
+        }
+        return this._internal[position];
+    },
+
+    // Returns an Array representation of the EList
+    //
+    //      @returns {Array}
+
+    array: function() {
+        return this._internal;
+    },
+
+    // underscore methods.
+
+    first: function() {
+        return _.first(this._internal);
+    },
+
+    last: function() {
+        return _.last(this._internal);
+    },
+
+    rest: function(index) {
+        return _.rest(this._internal, index);
+    },
+
+    each: function(iterator, context) {
+        return _.each(this._internal, iterator, context);
+    },
+
+    filter: function(iterator, context) {
+        return _.filter(this._internal, iterator, context);
+    },
+
+    find: function(iterator, context) {
+        return _.find(this._internal, iterator, context);
+    },
+
+    map: function(iterator, context) {
+        return _.map(this._internal, iterator, context);
+    },
+
+    reject: function(iterator, context) {
+        return _.reject(this._internal, iterator, context);
+    },
+
+    contains: function(object) {
+        return _.contains(this._internal, object);
+    },
+
+    indexOf: function(object) {
+        return _.indexOf(this._internal, object);
+    }
+
+};
+
+//  Bootstrap Ecore Model.
+
+var EClass = new EObject(),
+    EString = new EObject(),
+    EInt = new EObject(),
+    EBoolean = new EObject(),
+    EDouble = new EObject(),
+    EDate = new EObject(),
+    JSObject = new EObject(),
+    EClass_abstract = new EObject(),
+    EClass_interface = new EObject(),
+    EClass_eStructuralFeatures = new EObject(),
+    EClass_eOperations = new EObject(),
+    EClass_eSuperTypes = new EObject();
+
+
+// EClass
+//  - attributes:
+//      - abstract: Boolean
+//      - interface: Boolean
+//  - references:
+//      - eStructuralFeatures: EStructuralFeature
+//      - eSuperTypes: EClass
+//      - eOperations: EOperation
+//  - operations:
+//      - isSuperTypeOf(eClass): Boolean
+//      - getEStructuralFeature(feature): EStructuralFeature
+
+
+EClass.eClass = EClass;
+EClass.values = {
+    name: 'EClass',
+    abstract: false,
+    'interface': false,
+    eStructuralFeatures: new Ecore.EList(EClass),
+    eOperations: new Ecore.EList(EClass),
+    eSuperTypes: new Ecore.EList(EClass),
+
+    // Derived Features
+
+    eAllSuperTypes: function() {
+        if (!this._eAllSuperTypes) {
+            var compute = function(eClass) {
+                var superTypes = eClass.get('eSuperTypes').array(),
+                    eAllSuperTypes = _.flatten(_.map(superTypes, function(s) {
+                        return s.get('eAllSuperTypes');
+                    }));
+
+                return _.union(eAllSuperTypes, superTypes);
+            };
+
+            this.on('add:eSuperTypes remove:eSuperTypes', function() {
+                this._eAllSuperTypes = compute(this);
+            }, this);
+
+            this._eAllSuperTypes = compute(this);
+        }
+
+        return this._eAllSuperTypes;
+    },
+    eAllSubTypes: function() {
+        var eClasses, subTypes, resourceSet;
+
+        resourceSet = this.eResource().get('resourceSet');
+        if (resourceSet) {
+            eClasses = resourceSet.elements('EClass');
+        } else {
+            eClasses = Ecore.EPackage.Registry.elements('EClass');
+        }
+        subTypes = _.filter(eClasses, function(c) {
+            return _.contains(c.get('eAllSuperTypes'), this);
+        }, this);
+
+        return _.isArray(subTypes) ? subTypes : [];
+    },
+    eReferences: function() {
+        var eFeatures, eReferences;
+
+        eFeatures = this.get('eStructuralFeatures');
+        eReferences = eFeatures.filter(function(f) {
+            return f.isTypeOf('EReference');
+        });
+
+        return eReferences;
+    },
+    eAttributes: function() {
+        var eFeatures, eAttributes;
+
+        eFeatures = this.get('eStructuralFeatures');
+        eAttributes = eFeatures.filter(function(f) {
+            return f.isTypeOf('EAttribute');
+        });
+
+        return eAttributes;
+    },
+    eIDAttribute: function() {
+        var eAttributes, eID;
+
+        eAttributes = this.get('eAllAttributes');
+        eID = _.filter(eAttributes, function(a) {
+            return a.get('iD') === true;
+        });
+        
+        // Return the first reference with a true iD flag
+        return _.isArray(eID) ? eID[0] : null;
+    },
+    eAllStructuralFeatures: function() {
+        var compute = function(eClass) {
+            var eSuperFeatures, eAllFeatures, eSuperTypes;
+            eSuperTypes = eClass.get('eAllSuperTypes');
+            eAllFeatures = eClass.values.eStructuralFeatures.array();
+            eSuperFeatures = _.flatten(_.map(eSuperTypes || [], function(s) {
+                return s.values.eStructuralFeatures.array();
+            }));
+
+            return _.union(eSuperFeatures || [], eAllFeatures || []);
+        };
+
+        return compute(this);
+    },
+    eAllAttributes: function() {
+        var eAllFeatures = this.get('eAllStructuralFeatures'),
+            eAllAttributes = _.filter(eAllFeatures || [], function(f) {
+                return f.eClass === Ecore.EAttribute;
+            });
+
+        return eAllAttributes;
+    },
+    eAllContainments: function() {
+        var eAllFeatures = this.get('eAllStructuralFeatures'),
+            eAllContainments = _.filter(eAllFeatures, function(f) {
+                return f.eClass === Ecore.EReference && f.get('containment');
+            });
+
+        return eAllContainments;
+    },
+    eAllReferences: function() {
+        var eAllFeatures = this.get('eAllStructuralFeatures'),
+            eAllReferences = _.filter(eAllFeatures, function(f) {
+                return f.eClass === Ecore.EReference && !f.get('containment');
+            });
+
+        return eAllReferences;
+    }
+};
+
+EClass_abstract.values = {
+    name: 'abstract',
+    lowerBound: 0,
+    upperBound: 1,
+    defaultValueLiteral: 'false',
+    defaultValue: false,
+    eType: EBoolean
+};
+EClass_interface.values = {
+    name: 'interface',
+    lowerBound: 0,
+    upperBound: 1,
+    defaultValueLiteral: 'false',
+    defaultValue: false,
+    eType: EBoolean
+};
+EClass_eStructuralFeatures.values = {
+    name: 'eStructuralFeatures',
+    lowerBound: 0,
+    upperBound: -1,
+    containment: true
+};
+EClass_eSuperTypes.values = {
+    name: 'eSuperTypes',
+    lowerBound: 0,
+    upperBound: -1,
+    containment: false
+};
+EClass_eOperations.values = {
+    name: 'eOperations',
+    lowerBound: 0,
+    upperBound: -1,
+    containment: true
+};
+EClass.get('eStructuralFeatures')
+    .add(EClass_abstract)
+    .add(EClass_interface)
+    .add(EClass_eSuperTypes)
+    .add(EClass_eStructuralFeatures)
+    .add(EClass_eOperations);
+
+
+// EClass derived features
+//  - eAllStructuralFeatures
+//  - eAllSuperTypes
+//  - eAllSubTypes (added, not in ecore)
+//  - eAllAttributes
+//  - eAllContainments
+//  - eAllReferences
+//  - eReferences
+//  - eAttributes
+//  - eIDAttribute
+
+var EClass_eAllStructuralFeatures = new EObject();
+EClass_eAllStructuralFeatures.values = {
+    name: 'eAllStructuralFeatures',
+    lowerBound: 0,
+    upperBound: -1,
+    derived: true,
+    containment: false,
+    _: EClass.values.eAllStructuralFeatures
+};
+var EClass_eAllSuperTypes = new EObject();
+EClass_eAllSuperTypes.values = {
+    name: 'eAllSuperTypes',
+    lowerBound: 0,
+    upperBound: -1,
+    derived: true,
+    containment: false,
+    _: EClass.values.eAllSuperTypes
+};
+var EClass_eAllSubTypes = new EObject();
+EClass_eAllSubTypes.values = {
+    name: 'eAllSubTypes',
+    lowerBound: 0,
+    upperBound: -1,
+    derived: true,
+    containment: false,
+    _: EClass.values.eAllSubTypes
+};
+var EClass_eAllAttributes = new EObject();
+EClass_eAllAttributes.values = {
+    name: 'eAllAttributes',
+    lowerBound: 0,
+    upperBound: -1,
+    derived: true,
+    containment: false,
+    _: EClass.values.eAllAttributes
+};
+var EClass_eAllContainments = new EObject();
+EClass_eAllContainments.values = {
+    name: 'eAllContainments',
+    lowerBound: 0,
+    upperBound: -1,
+    derived: true,
+    containment: false,
+    _: EClass.values.eAllContainments
+};
+var EClass_eAllReferences = new EObject();
+EClass_eAllReferences.values = {
+    name: 'eAllReferences',
+    lowerBound: 0,
+    upperBound: -1,
+    derived: true,
+    containment: false,
+    _: EClass.values.eAllReferences
+};
+var EClass_eReferences = new EObject();
+EClass_eReferences.values = {
+    name: 'eReferences',
+    lowerBound: 0,
+    upperBound: -1,
+    derived: true,
+    containment: false,
+    _: EClass.values.eReferences
+};
+var EClass_eAttributes = new EObject();
+EClass_eAttributes.values = {
+    name: 'eAttributes',
+    lowerBound: 0,
+    upperBound: -1,
+    derived: true,
+    containment: false,
+    _: EClass.values.eAttributes
+};
+var EClass_eIDAttribute = new EObject();
+EClass_eIDAttribute.values = {
+    name: 'eIDAttribute',
+    lowerBound: 0,
+    upperBound: 1,
+    derived: true,
+    containment: false,
+    _: EClass.values.eIDAttribute
+};
+
+EClass.get('eStructuralFeatures')
+    .add(EClass_eAllStructuralFeatures)
+    .add(EClass_eAllSuperTypes)
+    .add(EClass_eAllSubTypes)
+    .add(EClass_eAllAttributes)
+    .add(EClass_eAllReferences)
+    .add(EClass_eAllContainments)
+    .add(EClass_eAttributes)
+    .add(EClass_eReferences)
+    .add(EClass_eIDAttribute);
+
+// EClass EOperations
+
+EClass.getEStructuralFeature = function(feature) {
+    var featureName;
+
+    featureName = feature.eClass ? feature.get('name') : feature;
+
+    return _.find(this.get('eAllStructuralFeatures'), function(f) {
+        return f.get('name') === featureName;
+    });
+};
+
+var EClass_getEStructuralFeature = new EObject();
+EClass_getEStructuralFeature.values = {
+    name: 'getEStructuralFeature',
+    lowerBound: 0,
+    upperBound: 1,
+    eParameters: new Ecore.EList(this)
+};
+EClass_getEStructuralFeature._ = EClass.getEStructuralFeature;
+
+EClass.get('eOperations').add(EClass_getEStructuralFeature);
+
+// Setting feature reference for ELists.
+EClass.values.eStructuralFeatures._setFeature(EClass_eStructuralFeatures);
+EClass.values.eSuperTypes._setFeature(EClass_eSuperTypes);
+EClass.values.eOperations._setFeature(EClass_eOperations);
+
+// Initialize remaining EClasses
+
+var EObjectClass = EClass.create(),
+    EModelElement = EClass.create(),
+    EAnnotation = EClass.create(),
+    ENamedElement = EClass.create(),
+    EPackage = EClass.create(),
+    EClassifier = EClass.create(),
+    EDataType = EClass.create(),
+    EEnum = EClass.create(),
+    ETypedElement = EClass.create(),
+    EStructuralFeature = EClass.create(),
+    EAttribute = EClass.create(),
+    EReference = EClass.create(),
+    EOperation = EClass.create(),
+    EParameter = EClass.create(),
+    EEnumLiteral = EClass.create();
+
+// Set eClass and necessary values for EClass features.
+
+// abstract
+EClass_abstract.eClass = EAttribute;
+// interface
+EClass_interface.eClass = EAttribute;
+// eStructuralFeatures
+EClass_eStructuralFeatures.eClass = EReference;
+EClass_eStructuralFeatures.values.eType = EStructuralFeature;
+// eSuperTypes
+EClass_eSuperTypes.eClass = EReference;
+EClass_eSuperTypes.values.eType = EClass;
+// eOperations
+EClass_eOperations.eClass = EReference;
+EClass_eOperations.values.eType = EOperation;
+// eAllStructuralFeatures
+EClass_eAllStructuralFeatures.eClass = EReference;
+EClass_eAllStructuralFeatures.values.eType = EStructuralFeature;
+// eAllSuperTypes
+EClass_eAllSuperTypes.eClass = EReference;
+EClass_eAllSuperTypes.values.eType = EClass;
+// eAllSubTypes
+EClass_eAllSubTypes.eClass = EReference;
+EClass_eAllSubTypes.values.eType = EClass;
+// eAllAttributes
+EClass_eAllAttributes.eClass = EReference;
+EClass_eAllAttributes.values.eType = EAttribute;
+// eAllReferences
+EClass_eAllReferences.eClass = EReference;
+EClass_eAllReferences.values.eType = EReference;
+// eAllContainments
+EClass_eAllContainments.eClass = EReference;
+EClass_eAllContainments.values.eType = EReference;
+// eAttributes
+EClass_eAttributes.eClass = EReference;
+EClass_eAttributes.values.eType = EAttribute;
+// eReferences
+EClass_eReferences.eClass = EReference;
+EClass_eReferences.values.eType = EReference;
+// eIDAttribute
+EClass_eIDAttribute.eClass = EReference;
+EClass_eIDAttribute.values.eType = EAttribute;
+// getEStructuralFeature
+EClass_getEStructuralFeature.eClass = EOperation;
+EClass_getEStructuralFeature.values.eType = EStructuralFeature;
+
+// Set Types Hierarchy.
+EModelElement.get('eSuperTypes').add(EObjectClass);
+EAnnotation.get('eSuperTypes').add(EModelElement);
+ENamedElement.get('eSuperTypes').add(EModelElement);
+EPackage.get('eSuperTypes').add(ENamedElement);
+EClassifier.get('eSuperTypes').add(ENamedElement);
+EClass.get('eSuperTypes').add(EClassifier);
+EDataType.get('eSuperTypes').add(EClassifier);
+EEnum.get('eSuperTypes').add(EDataType);
+EEnumLiteral.get('eSuperTypes').add(ENamedElement);
+ETypedElement.get('eSuperTypes').add(ENamedElement);
+EStructuralFeature.get('eSuperTypes').add(ETypedElement);
+EAttribute.get('eSuperTypes').add(EStructuralFeature);
+EReference.get('eSuperTypes').add(EStructuralFeature);
+EOperation.get('eSuperTypes').add(ETypedElement);
+EParameter.get('eSuperTypes').add(ETypedElement);
+
+// ETypedElement
+//  - attributes:
+//      - ordered: Boolean
+//      - unique: Boolean
+//      - lowerBound: Integer
+//      - upperBound: Integer
+//      - many: Boolean
+//      - required: Boolean
+//  - references:
+//      - eType: EClassifier
+
+var ETypedElement_eType = new EObject(),
+    ETypedElement_ordered = new EObject(),
+    ETypedElement_unique = new EObject(),
+    ETypedElement_lowerBound = new EObject(),
+    ETypedElement_upperBound = new EObject(),
+    ETypedElement_many = new EObject(),
+    ETypedElement_required = new EObject();
+
+ETypedElement_eType.eClass = EReference;
+ETypedElement_eType.values = {
+    name: 'eType',
+    lowerBound: 0,
+    upperBound: 1,
+    containment: false,
+    eType: EClassifier
+};
+ETypedElement_ordered.eClass = EAttribute;
+ETypedElement_ordered.values = {
+    name: 'ordered',
+    lowerBound: 0,
+    upperBound: 1,
+    defaultValueLiteral: 'true',
+    defaultValue: true,
+    eType: EBoolean
+};
+ETypedElement_unique.eClass = EAttribute;
+ETypedElement_unique.values = {
+    name: 'unique',
+    lowerBound: 0,
+    upperBound: 1,
+    defaultValueLiteral: 'true',
+    defaultValue: true,
+    eType: EBoolean
+};
+ETypedElement_lowerBound.eClass = EAttribute;
+ETypedElement_lowerBound.values = {
+    name: 'lowerBound',
+    lowerBound: 0,
+    upperBound: 1,
+    defaultValueLiteral: '0',
+    defaultValue: 0,
+    eType: EInt
+};
+ETypedElement_upperBound.eClass = EAttribute;
+ETypedElement_upperBound.values = {
+    name: 'upperBound',
+    lowerBound: 0,
+    upperBound: 1,
+    defaultValueLiteral: '1',
+    defaultValue: 1,
+    eType: EInt
+};
+ETypedElement_many.eClass = EAttribute;
+ETypedElement_many.values = {
+    name: 'many',
+    lowerBound: 0,
+    upperBound: 1,
+    eType: EBoolean,
+    derived: true,
+    _: function() {
+        return this.get('upperBound') !== 1;
+    }
+};
+ETypedElement_required.eClass = EAttribute;
+ETypedElement_required.values = {
+    name: 'required',
+    lowerBound: 0,
+    upperBound: 1,
+    eType: EBoolean,
+    derived: true,
+    _: function() {
+        return this.get('lowerBound') === 1;
+    }
+};
+
+ETypedElement.get('eStructuralFeatures')
+    .add(ETypedElement_eType)
+    .add(ETypedElement_ordered)
+    .add(ETypedElement_unique)
+    .add(ETypedElement_lowerBound)
+    .add(ETypedElement_upperBound)
+    .add(ETypedElement_many)
+    .add(ETypedElement_required);
+
+// EModelElement
+//  - references:
+//      - eAnnotations
+//  - operations:
+//      - getEAnnotation(source): EAnnotation
+
+var EModelElement_eAnnotations = new EObject();
+EModelElement_eAnnotations.eClass = EReference;
+EModelElement_eAnnotations.values = {
+    name: 'eAnnotations',
+    eType: EAnnotation,
+    lowerBound: 0,
+    upperBound: -1,
+    containment: true
+};
+
+EModelElement.get('eStructuralFeatures').add(EModelElement_eAnnotations);
+
+// ENamedElement
+// - attributes
+//   - name: EString
+
+var ENamedElement_name = new EObject();
+ENamedElement_name.eClass = EAttribute;
+ENamedElement_name.values = {
+    name: 'name',
+    lowerBound: 0,
+    upperBound: 1,
+    eType: EString
+};
+
+ENamedElement.get('eStructuralFeatures').add(ENamedElement_name);
+
+// EClassifier
+//  - references:
+//      - ePackages[*]: EPackage
+
+// EStructuralFeature
+//  - attributes:
+//      - changeable: Boolean
+//      - volatile: Boolean
+//      - transient: Boolean
+//      - defaultValueLiteral: String
+//      - defaultValue: Object
+//      - unsettable: Boolean
+//      - derived: Boolean
+
+var EStructuralFeature_changeable = EAttribute.create({ name: 'changeable', eType: EBoolean }),
+    EStructuralFeature_volatile = EAttribute.create({ name: 'volatile', eType: EBoolean }),
+    EStructuralFeature_transient = EAttribute.create({ name: 'transient', eType: EBoolean }),
+    EStructuralFeature_defaultValueLiteral = EAttribute.create({ name: 'defaultValueLiteral', eType: EString }),
+    EStructuralFeature_defaultValue = EAttribute.create({ name: 'defaultValue', eType: JSObject, derived: true }),
+    EStructuralFeature_unsettable = EAttribute.create({ name: 'unsettable', eType: EBoolean }),
+    EStructuralFeature_derived = EAttribute.create({ name: 'derived', eType: EBoolean });
+
+EStructuralFeature.get('eStructuralFeatures')
+    .add(EStructuralFeature_changeable)
+    .add(EStructuralFeature_volatile)
+    .add(EStructuralFeature_transient)
+    .add(EStructuralFeature_defaultValueLiteral)
+    .add(EStructuralFeature_defaultValue)
+    .add(EStructuralFeature_unsettable)
+    .add(EStructuralFeature_derived);
+
+EStructuralFeature_defaultValue.set({ derived: true });
+
+// EReference
+//  - attributes
+//      - containment
+//      - container
+//      - resolveProxies
+//  - references
+//      - eOpposite
+
+var EReference_containment = EAttribute.create({ name: 'containment', eType: EBoolean }),
+    EReference_container = EAttribute.create({ name: 'container', eType: EBoolean }),
+    EReference_resolveProxies = EAttribute.create({ name: 'resolveProxies', eType: EBoolean }),
+    EReference_eOpposite = EReference.create({ name: 'eOpposite', eType: EReference });
+
+EReference.get('eStructuralFeatures')
+    .add(EReference_containment)
+    .add(EReference_container)
+    .add(EReference_resolveProxies)
+    .add(EReference_eOpposite);
+
+// EAttribute
+//  - attributes
+//      - iD: Boolean
+
+var EAttribute_iD = EAttribute.create({ name: 'iD', eType: EBoolean });
+EAttribute.get('eStructuralFeatures').add(EAttribute_iD);
+
+// Set attributes values for EClasses.
+
+EObjectClass.set({ name: 'EObject' });
+EModelElement.set({ name: 'EModelElement', abstract: true });
+EAnnotation.set({ name: 'EAnnotation' });
+ENamedElement.set({ name: 'ENamedElement', abstract: true });
+EPackage.set({ name: 'EPackage' });
+EClassifier.set({ name: 'EClassifier', abstract: true });
+EDataType.set({ name: 'EDataType' });
+EEnum.set({ name: 'EEnum' });
+ETypedElement.set({ name: 'ETypedElement', abstract: true });
+EStructuralFeature.set({ name: 'EStructuralFeature', abstract: true });
+EAttribute.set({ name: 'EAttribute' });
+EReference.set({ name: 'EReference' });
+EOperation.set({ name: 'EOperation' });
+EParameter.set({ name: 'EParameter' });
+EEnumLiteral.set({ name: 'EEnumLiteral' });
+
+// EOperation
+//
+
+var EOperation_eParameters = EReference.create({
+    name: 'eParameters',
+    eType: EParameter,
+    containment: true,
+    lowerBound: 0,
+    upperBound: -1
+});
+
+EOperation.get('eStructuralFeatures').add(EOperation_eParameters);
+
+var EEnum_eLiterals = EReference.create({
+    name: 'eLiterals',
+    eType: EEnumLiteral,
+    containment: true,
+    lowerBound: 0,
+    upperBound: -1
+});
+
+EEnum.get('eStructuralFeatures').add(EEnum_eLiterals);
+
+EEnumLiteral.get('eStructuralFeatures')
+    .add(EAttribute.create({ name: 'literal', eType: EString }))
+    .add(EAttribute.create({ name: 'value', eType: EInt }));
+
+// EStringToStringMapEntry
+//  - attributes
+//    - key: EString
+//    - value: EString
+
+var EStringToStringMapEntry = EClass.create({
+    name: 'EStringToStringMapEntry'
+});
+
+var EStringToStringMapEntry_key = EAttribute.create({
+    name: 'key',
+    lowerBound: 0,
+    upperBound: 1,
+    eType: EString
+});
+
+var EStringToStringMapEntry_value = EAttribute.create({
+    name: 'value',
+    lowerBound: 0,
+    upperBound: 1,
+    eType: EString
+});
+
+EStringToStringMapEntry.get('eStructuralFeatures')
+    .add(EStringToStringMapEntry_key)
+    .add(EStringToStringMapEntry_value);
+
+// EAnnotation
+// - attributes:
+//  - source: EString
+// - references:
+//  - details[*]: EStringToStringMapEntry
+
+var EAnnotation_source = EAttribute.create({
+    name: 'source',
+    upperBound: 1,
+    lowerBound: 0,
+    eType: EString
+});
+var EAnnotation_details = EReference.create({
+    name: 'details',
+    upperBound: -1,
+    lowerBound: 0,
+    containment: true,
+    eType: EStringToStringMapEntry
+});
+
+EAnnotation.get('eStructuralFeatures')
+    .add(EAnnotation_source)
+    .add(EAnnotation_details);
+
+
+// Setting core datatypes values
+
+EString.eClass = EDataType;
+EString.set({ name: 'EString' });
+EInt.eClass = EDataType;
+EInt.set({ name: 'EInt' });
+EBoolean.eClass = EDataType;
+EBoolean.set({ name: 'EBoolean' });
+EDate.eClass = EDataType;
+EDate.set({ name: 'EDate' });
+EDouble.eClass = EDataType;
+EDouble.set({ name: 'EDouble' });
+JSObject.eClass = EDataType;
+JSObject.set({ name: 'JSObject' });
+
+// Additional datatypes
+
+Ecore.ELong = EDataType.create({
+    name: 'ELong'
+});
+Ecore.EFloat = EDataType.create({
+    name: 'EFloat'
+});
+Ecore.EShort = EDataType.create({
+    name: 'EShort'
+});
+
+// EPackage
+//  - references
+//      - eClassifiers
+
+var EPackage_eClassifiers = EReference.create({
+    name: 'eClassifiers',
+    lowerBound: 0,
+    upperBound: -1,
+    containment: true,
+    eType: EClassifier
+});
+
+var EPackage_eSubPackages = EReference.create({
+    name: 'eSubPackages',
+    lowerBound: 0,
+    upperBound: -1,
+    containment: true,
+    eType: EPackage
+});
+
+EPackage.get('eStructuralFeatures')
+    .add(EAttribute.create({ name: 'nsURI', eType: EString }))
+    .add(EAttribute.create({ name: 'nsPrefix', eType: EString }))
+    .add(EPackage_eClassifiers)
+    .add(EPackage_eSubPackages);
+
+// EcorePackage
+
+Ecore.EcorePackage = EPackage.create({
+    name: 'ecore',
+    nsPrefix: 'ecore',
+    nsURI: 'http://www.eclipse.org/emf/2002/Ecore'
+});
+
+Ecore.EcorePackage.get('eClassifiers')
+    .add(EObjectClass)
+    .add(EModelElement)
+    .add(EAnnotation)
+    .add(ENamedElement)
+    .add(EPackage)
+    .add(EClassifier)
+    .add(EClass)
+    .add(EDataType)
+    .add(ETypedElement)
+    .add(EStructuralFeature)
+    .add(EAttribute)
+    .add(EReference)
+    .add(EOperation)
+    .add(EParameter)
+    .add(EEnum)
+    .add(EEnumLiteral)
+    .add(EStringToStringMapEntry)
+    .add(EString)
+    .add(EBoolean)
+    .add(EInt)
+    .add(EDouble)
+    .add(EDate)
+    .add(Ecore.EShort)
+    .add(Ecore.EFloat)
+    .add(Ecore.ELong)
+    .add(JSObject);
+
+Ecore.EObject = EObjectClass;
+Ecore.EModelElement = EModelElement;
+Ecore.EClass = EClass;
+Ecore.EClassifier = EClassifier;
+Ecore.EAnnotation = EAnnotation;
+Ecore.EStringToStringMapEntry = EStringToStringMapEntry;
+Ecore.EPackage = EPackage;
+Ecore.ETypedElement = ETypedElement;
+Ecore.ENamedElement = ENamedElement;
+Ecore.EStructuralFeature = EStructuralFeature;
+Ecore.EAttribute = EAttribute;
+Ecore.EReference = EReference;
+Ecore.EEnum = EEnum;
+Ecore.EEnumLiteral = EEnumLiteral;
+Ecore.EDataType = EDataType;
+Ecore.EOperation = EOperation;
+Ecore.EParameter = EParameter;
+Ecore.EString = EString;
+Ecore.EBoolean = EBoolean;
+Ecore.EInt = EInt;
+Ecore.EDouble = EDouble;
+Ecore.EDate = EDate;
+Ecore.JSObject = JSObject;
+
+// EPackage Registry
+//
+// Stores all created EPackages
+
+Ecore.EPackage.Registry = {
+
+    _ePackages: {},
+
+    getEPackage: function(nsURI) {
+        return this._ePackages[nsURI];
+    },
+
+    register: function(ePackage) {
+        if (!ePackage.isSet('nsURI')) {
+            throw new Error('Cannot register EPackage without nsURI');
+        }
+
+        ePackage.get('eSubPackages').each(function(ePackage) {
+            register(ePackage)
+        });
+
+        this._ePackages[ePackage.get('nsURI')] = ePackage;
+    },
+
+    ePackages: function() {
+        return _.values(this._ePackages);
+    },
+
+    elements: function(type) {
+        var filter = function(el) {
+            if (!type) return true;
+            else if (type.eClass) {
+                return el.eClass === type;
+            } else {
+                return el.eClass.get('name') === type;
+            }
+        };
+
+        var ePackages = this.ePackages();
+        var content = function(eObject) {
+            return _.map(eObject.eContents(), function(c) {
+                return [c, content(c)];
+            });
+        };
+        var map = function(p) { return content(p); };
+        var contents = [ePackages, _.map(ePackages, map)];
+        contents = _.flatten(contents);
+        contents = _.filter(contents, filter);
+
+        return contents;
+    }
+
+};
+
+// Registers Ecore Package
+
+Ecore.EPackage.Registry.register(Ecore.EcorePackage);
+
+
+
+// JSON serializer and parser for EMF.
+//
+// See https://github.com/ghillairet/emfjson for details
+// about the JSON format used for EMF Models.
+//
+//
+
+Ecore.JSON = {
+
+    dataType: 'json',
+    contentType: 'application/json',
+
+    parse: function(model, data) {
+        if (_.isString(data)) {
+            data = JSON.parse(data);
+        }
+
+        var toResolve = [],
+            resourceSet = model.get('resourceSet') || Ecore.ResourceSet.create();
+
+        function processFeature(object, eObject) {
+            if (!object || !eObject)
+                return function() {};
+
+            return function( feature ) {
+                if (!feature || feature.get('derived')) return;
+
+                var featureName = feature.get('name'),
+                    value = object[featureName];
+
+                if (typeof value !== 'undefined') {
+                    if ( feature.isTypeOf('EAttribute') ) {
+                        eObject.set( featureName, value );
+                    } else if (feature.get('containment')) {
+                        if (feature.get('upperBound') === 1) {
+                            eObject.set( featureName, parseObject(value) );
+                        } else {
+                            _.each(value || [], function(val) {
+                                eObject.get( featureName ).add( parseObject(val) );
+                            });
+                        }
+                    } else {
+                        toResolve.push({ parent: eObject, feature: feature, value: value });
+                    }
+                }
+            };
+        }
+
+        function resolveReferences() {
+            var index = buildIndex(model);
+
+            function setReference(parent, feature, value, isMany) {
+                var ref = value.$ref;
+                var resolved = index[ref];
+
+                if (!resolved) {
+                    resolved = resourceSet.getEObject(ref);
+                }
+
+                if (resolved) {
+                    if (isMany) {
+                        parent.get(feature.get('name')).add(resolved);
+                    } else {
+                        parent.set(feature.get('name'), resolved);
+                    }
+                }
+            }
+
+            _.each(toResolve, function(resolving) {
+                var parent = resolving.parent,
+                    feature = resolving.feature,
+                    value = resolving.value;
+
+                if (feature.get('upperBound') === 1) {
+                    setReference(parent, feature, value, false);
+                } else {
+                    _.each(_.isArray(value) ? value : [value], function(val) {
+                        setReference(parent, feature, val, true);
+                    });
+                }
+            });
+        }
+
+        function parseObject(object) {
+            var eClass, features, child;
+
+            if (object && object.eClass) {
+                eClass = resourceSet.getEObject(object.eClass);
+                if (eClass) {
+                    features = eClass.get('eAllStructuralFeatures');
+                    child = eClass ? Ecore.create(eClass) : null;
+
+                    if (child) {
+                        if (object._id) {
+                            child._id = object._id;
+                        }
+                        _.each( features, processFeature(object, child) );
+                    }
+                } else {
+                    throw new Error('Cannot find EClass from href ' + JSON.stringify(object.eClass));
+                }
+            }
+
+            return child;
+        }
+
+        if (_.isArray(data)) {
+            _.each(data, function (object) {
+                model.add(parseObject(object));
+            });
+        } else {
+            model.add(parseObject(data));
+        }
+
+        resolveReferences();
+    },
+
+    to: function(model) {
+        var contents = model.get('contents').array(),
+            indexes = {};
+            indexes[model.get('uri')] = buildIndex(model);
+
+        function uri(owner, value) {
+            var valueModel = value.eResource(),
+                ownerModel = owner.eResource(),
+                external = valueModel !== ownerModel;
+
+            if (!valueModel || !ownerModel) return;
+            if (!indexes[valueModel.get('uri')]) {
+                indexes[valueModel.get('uri')] = buildIndex(valueModel);
+            }
+
+            var index = indexes[valueModel.get('uri')];
+            for (var key in index) {
+                if (index[key] === value) {
+                    return external ? valueModel.get('uri') + '#' + key : key;
+                }
+            }
+
+            return null;
+        }
+
+        function processValue(object, value, isContainment) {
+            if (isContainment === true) {
+                return jsonObject(value);
+            } else {
+               return { '$ref': uri(object, value), 'eClass': value.eClass.eURI() };
+            }
+        }
+
+        function processFeature( object, data ) {
+            if (!object || !data) return function() {};
+
+            return function( num, key ) {
+                if (key[0] === '_') return;
+                var feature = object.eClass.getEStructuralFeature(key),
+                    isSet = object.isSet(key);
+
+                if (!feature || !isSet || feature.get('derived')) return;
+
+                var value = num,
+                    featureName = feature.get('name'),
+                    isMany = feature.get('upperBound') !== 1,
+                    isContainment = feature.get('containment');
+
+                if (feature.isTypeOf('EAttribute')) {
+                    data[featureName] = value;
+                } else {
+                    if (isMany) {
+                        data[featureName] = [];
+                        value.each(function(val) {
+                            data[featureName].push( processValue(object, val, isContainment) );
+                        });
+                    } else {
+                        data[featureName] = processValue(object, value, isContainment);
+                    }
+                }
+            };
+        }
+
+        function jsonObject(object) {
+            var eClass = object.eClass,
+                values = object.values,
+                data = { eClass: eClass.eURI() };
+
+            if (object._id) { data._id = object._id; }
+
+            _.each( values, processFeature(object, data) );
+
+            return data;
+        }
+
+        var data;
+        if (contents.length === 1) {
+            var eObject = contents[0];
+            data = jsonObject(eObject);
+        } else {
+            data = [];
+            for (var i = 0; i < contents.length; i++) {
+                data.push(jsonObject(contents[i]));
+            }
+        }
+        return data;
+    }
+
+};
+
+// Resource
+
+var EClassResource = Ecore.Resource = Ecore.EClass.create({
+    name: 'Resource',
+    eSuperTypes: [
+        Ecore.EObject
+    ],
+    eStructuralFeatures: [
+        {
+            eClass: Ecore.EAttribute,
+            name: 'uri',
+            lowerBound: 1,
+            upperBound: 1,
+            eType: Ecore.EString
+        },
+        {
+            eClass: Ecore.EReference,
+            name: 'contents',
+            upperBound: -1,
+            containment: true,
+            eType: Ecore.EObject
+        },
+        {
+            eClass: Ecore.EReference,
+            name: 'resourceSet',
+            upperBound: 1,
+            lowerBound: 0,
+            eType: Ecore.ResourceSet
+        }
+    ],
+    eOperations: [
+        {
+            eClass: Ecore.EOperation,
+            name: 'add',
+            _: function(eObject) {
+                if (!eObject && !eObject.eClass) return this;
+
+                eObject.eContainer = this;
+                this.get('contents').add(eObject);
+
+                return this;
+            }
+        },
+        {
+            eClass: Ecore.EOperation,
+            name: 'clear',
+            _: function() {
+                this.get('contents').clear();
+                return this;
+            }
+        },
+        {
+            eClass: Ecore.EOperation,
+            name: 'addAll',
+            _: function(content) {
+                if (_.isArray(content)) {
+                    _.each(content, function(eObject) {
+                        this.add(eObject);
+                    }, this);
+                }
+
+                return this;
+            }
+        },
+        {
+            eClass: Ecore.EOperation,
+            name: 'getEObject',
+            eType: Ecore.EObject,
+            _: function(fragment) {
+                if (!fragment) return null;
+                
+                if(this._index()[fragment]) {
+                    return this._index()[fragment];
+                }
+            }
+        },
+        {
+            eClass: Ecore.EOperation,
+            name: 'each',
+            _: function(iterator, context) {
+                return this.get('contents').each(iterator, context);
+            }
+        },
+        {
+            eClass: Ecore.EOperation,
+            name: 'to',
+            _: function(formatter, indent) {
+                if (formatter && typeof formatter.to === 'function')
+                    return formatter.to(this, indent);
+                else
+                    return Ecore.JSON.to(this);
+            }
+        },
+        {
+            eClass: Ecore.EOperation,
+            name: 'parse',
+            _: function(data, loader) {
+                if (loader && typeof loader.parse === 'function')
+                    loader.parse(this, data);
+                else
+                    Ecore.JSON.parse(this, data);
+                return this;
+            }
+        },
+        {
+            eClass: Ecore.EOperation,
+            name: 'save',
+            _: function(callback, options) {
+                options || (options = {});
+
+                var formatter = options.format ? options.format : Ecore.JSON;
+                var data;
+                try {
+                    data = this.to(formatter);
+                } catch (e) {
+                    callback(null, e);
+                }
+
+                callback(data, null);
+            }
+        },
+        {
+            eClass: Ecore.EOperation,
+            name: 'load',
+            _: function(data, callback, options) {
+                options || (options = {});
+
+                var loader = options.format || Ecore.JSON;
+                var resourceSet = this.get('resourceSet');
+
+                try {
+                    this.parse(data, loader);
+                } catch (e) {
+                    callback(null, e);
+                }
+
+                this.trigger('change');
+                if (typeof callback === 'function') {
+                    callback(this, null);
+                }
+            }
+        },
+        {
+            eClass: Ecore.EOperation,
+            name: 'remove',
+            _: function() {
+                var resourceSet = this.get('resourceSet');
+                if (resourceSet) {
+                    resourceSet.get('resources').remove(this);
+                }
+                this.clear();
+            }
+        },
+        {
+            eClass: Ecore.EOperation,
+            name: '_index',
+            eType: JSObject,
+            _: function() {
+                if (_.isUndefined(this.__updateIndex)) {
+                    var res = this;
+                    res.__updateIndex = true;
+                    res.on('add remove', function() {
+                        res.__updateIndex = true;
+                    })
+                }
+
+                if (this.__updateIndex) {
+                    this.__index = buildIndex(this);
+                    this.__updateIndex = false;
+                }
+
+                return this.__index;
+            }
+        }
+    ]
+});
+
+
+// URIConverter
+//
+
+var URIConverter = function() {
+    this.uriMap = {};
+};
+
+URIConverter.prototype = {
+
+    map: function(key, value) {
+        this.uriMap[key] = value;
+    },
+
+    normalize: function(uri) {
+        var split = uri.split('#'),
+            base = split[0],
+            normalized = this.uriMap[base];
+
+        if (normalized) return normalized;
+
+        var slashIndex = base.lastIndexOf('/') + 1,
+            sliced, rest;
+
+        sliced = base.slice(0, slashIndex);
+
+        if (sliced === base) return uri;
+
+        rest = base.slice(slashIndex, base.length);
+
+        return this.normalize(sliced) + rest;
+    }
+
+};
+
+// ResourceSet
+//
+
+var EClassResourceSet = Ecore.ResourceSet = Ecore.EClass.create({
+    name: 'ResourceSet',
+    eSuperTypes: [
+        Ecore.EObject
+    ],
+    eStructuralFeatures: [
+        {
+            eClass: Ecore.EAttribute,
+            name: 'uri',
+            upperBound: 1,
+            lowerBound: 0,
+            eType: Ecore.EString
+        },
+        {
+            eClass: Ecore.EReference,
+            name: 'resources',
+            upperBound: -1,
+            containment: true,
+            eType: EClassResource
+        }
+    ],
+    eOperations: [
+        {
+            eClass: Ecore.EOperation,
+            eType: Ecore.Resource,
+            upperBound: 1,
+            name: 'create',
+            _: function(uri) {
+                var attrs = _.isObject(uri) ? uri : { uri: uri };
+
+                if (!attrs.uri) {
+                    throw new Error('Cannot create Resource, missing URI parameter');
+                }
+
+                var resource = this.get('resources').find(function(e) {
+                    return e.get('uri') === attrs.uri;
+                });
+
+                if (resource) return resource;
+
+                resource = Ecore.Resource.create(attrs);
+                resource.set('resourceSet', this);
+                this.get('resources').add(resource);
+                this.trigger('add', resource);
+
+                return resource;
+            }
+        },
+        {
+            eClass: Ecore.EOperation,
+            eType: Ecore.EObject,
+            upperBound: 1,
+            name: 'getEObject',
+            _: function(uri) {
+                var split = uri.split('#'),
+                    base = split[0],
+                    fragment = split[1],
+                    resource;
+                
+                if (!fragment) {
+                	return null;
+                }
+
+                var ePackage = Ecore.EPackage.Registry.getEPackage(base);
+
+                if (ePackage) {
+
+                    resource = ePackage.eResource();
+
+                    if (!resource) {
+                        resource = this.create({ uri: base });
+                        resource.add(ePackage);
+                        this.get('resources').add(resource);
+                        resource.set('resourceSet', this);
+                    }
+                }
+
+                if (resource) {
+                    return resource.getEObject(fragment);
+                }
+
+                resource = this.get('resources').find(function(e) {
+                    return e.get('uri') === base;
+                });
+
+                return resource ? resource.getEObject(fragment) : null;
+            }
+        },
+        {
+            eClass: Ecore.EOperation,
+            eType: Ecore.EObject,
+            upperBound: -1,
+            name: 'elements',
+            _: function(type) {
+                var filter = function(el) {
+                    return !type ? true : el.isKindOf(type);
+                };
+                var contents = this.get('resources').map(function(m) {
+                    return _.filter(_.values(m._index()), filter);
+                });
+                return _.flatten(contents);
+            }
+        },
+        {
+            eClass: Ecore.EOperation,
+            eType: Ecore.JSObject,
+            upperBound: 1,
+            name: 'uriConverter',
+            _: function() {
+                if (!this._converter) {
+                    this._converter = new URIConverter();
+                }
+
+                return this._converter;
+            }
+        },
+        {
+            eClass: Ecore.EOperation,
+            eType: Ecore.JSObject,
+            upperBound: 1,
+            name: 'toJSON',
+            _: function() {
+                var result = { total: this.get('resources').size(), resources: [] };
+
+                this.get('resources').each(function(resource) {
+                    result.resources.push({
+                        uri: resource.get('uri'),
+                        length: resource.get('contents').size(),
+                        contents: resource.get('contents').map(function(c) {
+                            return { eURI: c.eURI(), eClass: c.eClass.eURI() };
+                        })
+                    });
+                });
+
+                return result;
+            }
+        },
+        {
+            eClass: Ecore.EOperation,
+            name: 'parse',
+            _: function(data) {
+                if (!data || !data.resources) return;
+
+                _.each(data.resources, function(resource) {
+                    if (resource.uri) {
+                        resourceSet.create({ uri: resource.uri });
+                    }
+                }, this);
+            }
+        }
+    ]
+});
+
+EClassResource.getEStructuralFeature('resourceSet').set('eType', EClassResourceSet);
+
+var EPackageResource = Ecore.EPackage.create({
+    name: 'resources',
+    nsPrefix: 'resources',
+    nsURI: 'http://www.eclipselabs.org/ecore/2012/resources',
+    eClassifiers: [
+        EClassResourceSet,
+        EClassResource
+    ]
+});
+
+var EcoreResource = Ecore.Resource.create({ uri: Ecore.EcorePackage.get('nsURI') });
+EcoreResource.add(Ecore.EcorePackage);
+var ResourceResource = Ecore.Resource.create({ uri: EPackageResource.get('nsURI') });
+ResourceResource.add(EPackageResource);
+
+Ecore.EPackage.Registry.register(EPackageResource);
+
+// Build index of EObjects contained in a Resource.
+//
+// The index keys are the EObject's fragment identifier, the
+// values are the EObjects.
+//
+
+function buildIndex(model) {
+    var index = {},
+        contents = model.get('contents').array();
+
+    if (contents.length) {
+        var build = function(object, idx) {
+            var eContents = object.eContents();
+            index[idx] = object;
+
+            _.each(eContents, function(e) { build(e, e.fragment()); });
+        };
+
+        var root, iD;
+        if (contents.length === 1) {
+            root = contents[0];
+            if (root._id) {
+                build(root, root._id);
+            } else {
+                iD = root.eClass.get('eIDAttribute') || null;
+                if (iD) {
+                    build(root, root.get(iD.get('name')));
+                } else {
+                    build(root, '/');
+                }
+            }
+        } else {
+            for (var i = 0; i < contents.length; i++) {
+                root = contents[i];
+                if (root._id) {
+                    build(root, root._id);
+                } else {
+                    iD = root.eClass.get('eIDAttribute') || null;
+                    if (iD) {
+                        build(root, root.get(iD.get('name')));
+                    } else {
+                        build(root, '/' + i);
+                    }
+                }
+            }
+        }
+    }
+
+    return index;
+}
+
+
+
+function isNotAbstract(type) {
+    return !type.get('abstract');
+}
+
+function getSubTypes(type) {
+    if (!type || !type.eClass) return [];
+
+    var allSubTypes = type.get('eAllSubTypes');
+
+    return _.filter(_.union([type], allSubTypes), isNotAbstract);
+}
+
+function childTypes(object, createDescriptor) {
+    if (!object) return [];
+
+    var allContainments = object.eClass.get('eAllContainments');
+    var allSubTypes = function(feature) {
+        var types = getSubTypes(feature.get('eType'));
+
+        if (createDescriptor && typeof createDescriptor === 'function') {
+            return createDescriptor(object, feature, types);
+        } else {
+            return types;
+        }
+    }
+
+    return _.flatten(_.map(allContainments, allSubTypes));
+}
+
+function siblingTypes(object, createDescriptor) {
+    if (!object) return [];
+
+    var eContainer = object.eContainer;
+    var siblings = childTypes(eContainer, createDescriptor);
+
+    return siblings;
+}
+
+function createDescriptor(object, feature, types) {
+    return _.map(types, function(type) {
+        return {
+            label: 'New ' + type.get('name'),
+            owner: object,
+            feature: feature,
+            type: type
+        }
+    });
+};
+
+function childDescriptors(object) {
+    return childTypes(object, createDescriptor);
+}
+
+function siblingDescriptors(object) {
+    return siblingTypes(object, createDescriptor);
+}
+
+function textNamedElement(object) {
+    return object.get('name') || '';
+}
+
+function textTypedElement(object) {
+    var type = object.get('eType');
+    var isOp = object.eClass === Ecore.EOperation;
+    var typeName = type ? type.get('name') : null;
+
+    return object.get('name') + (isOp ? '()' : '') + (typeName ? ' : ' + typeName : '');
+}
+
+function choiceOfValues(owner, feature) {
+    if (owner == null || owner.eResource() == null || owner.eResource().get('resourceSet') == null)
+        throw new Error('Bad argument');
+
+    var type = feature.get('eType');
+    var resourceSet = owner.eResource().get('resourceSet');
+    var elements = resourceSet.elements();
+
+    return _.filter(elements, function(e) {
+        return e.isKindOf(type);
+    });
+}
+
+Ecore.Edit = {
+
+    childTypes: childTypes,
+    siblingTypes: siblingTypes,
+    childDescriptors: childDescriptors,
+    siblingDescriptors: siblingDescriptors,
+    choiceOfValues: choiceOfValues,
+
+    _get: function(fn, object) {
+        if (!object || !object.eClass) return null;
+
+         var eClass = object.eClass.get('name');
+         if (this[eClass]) {
+             if (typeof this[eClass][fn] === 'function') {
+                 return this[eClass][fn](object);
+             } else {
+                 return this[eClass][fn];
+             }
+        } else {
+            return object.eClass.get('name');
+        }
+    },
+
+    text: function(object) {
+        return this._get('text', object);
+    },
+
+    icon: function(object) {
+        return this._get('icon', object);
+    },
+
+    label: function(object) {
+        return this._get('label', object);
+    },
+
+    EClass: {
+        text: textNamedElement,
+        label: textNamedElement,
+        icon: 'icon-EClass'
+    },
+    EDataType: {
+        text: textNamedElement,
+        label: textNamedElement,
+        icon: 'icon-EDataType'
+    },
+    EEnum: {
+        text: textNamedElement,
+        label: textNamedElement,
+        icon: 'icon-EEnum'
+    },
+    EEnumLiteral: {
+        text: function(object) {
+            return object.get('name') + ' = ' + object.get('value');
+        },
+        label: textNamedElement,
+        icon: 'icon-EEnumLiteral'
+    },
+    EAttribute: {
+        text: textTypedElement,
+        label: textNamedElement,
+        icon: 'icon-EAttribute'
+    },
+    EReference: {
+        text: textTypedElement,
+        label: textNamedElement,
+        icon: 'icon-EReference'
+    },
+    EOperation: {
+        text: textTypedElement,
+        label: textNamedElement,
+        icon: 'icon-EOperation'
+    },
+    EPackage: {
+        text: textNamedElement,
+        label: textNamedElement,
+        icon: 'icon-EPackage'
+    },
+    EAnnotation: {
+        text: function(object) {
+            return object.get('source');
+        },
+        label: function(object) {
+            return object.get('source');
+        },
+        icon: 'icon-EAnnotation'
+    },
+    EStringToStringMapEntry: {
+        text: function(object) {
+            return object.get('key') + ' -> ' + object.get('value');
+        },
+        label: function(object) {
+            return object.get('key');
+        },
+        icon: 'icon-EStringToStringMapEntry'
+    },
+    ResourceSet: {
+        text: 'resourceSet',
+        label: '',
+        icon: 'icon-EObject'
+    },
+    Resource: {
+        text: function(object) {
+            return object.get('uri');
+        },
+        label: function(object) {
+            return object.get('uri');
+        },
+        icon: 'icon-EObject'
+    }
+
+}
+
+
+}.call(this));
+
+
+},{"underscore":220}],38:[function(require,module,exports){
+module.exports = require("./dist/ecore");
+
+
+},{"./dist/ecore":37}],39:[function(require,module,exports){
 /*!
  * EventEmitter2
  * https://github.com/hij1nx/EventEmitter2
@@ -7852,12 +10379,12 @@ function extend() {
   }
 }();
 
-},{}],38:[function(require,module,exports){
+},{}],40:[function(require,module,exports){
 'use strict';
 
 module.exports = require('./lib')
 
-},{"./lib":43}],39:[function(require,module,exports){
+},{"./lib":45}],41:[function(require,module,exports){
 'use strict';
 
 var asap = require('asap/raw');
@@ -8072,7 +10599,7 @@ function doResolve(fn, promise) {
   }
 }
 
-},{"asap/raw":47}],40:[function(require,module,exports){
+},{"asap/raw":49}],42:[function(require,module,exports){
 'use strict';
 
 var Promise = require('./core.js');
@@ -8087,7 +10614,7 @@ Promise.prototype.done = function (onFulfilled, onRejected) {
   });
 };
 
-},{"./core.js":39}],41:[function(require,module,exports){
+},{"./core.js":41}],43:[function(require,module,exports){
 'use strict';
 
 //This file contains the ES6 extensions to the core Promises/A+ API
@@ -8196,7 +10723,7 @@ Promise.prototype['catch'] = function (onRejected) {
   return this.then(null, onRejected);
 };
 
-},{"./core.js":39}],42:[function(require,module,exports){
+},{"./core.js":41}],44:[function(require,module,exports){
 'use strict';
 
 var Promise = require('./core.js');
@@ -8214,7 +10741,7 @@ Promise.prototype['finally'] = function (f) {
   });
 };
 
-},{"./core.js":39}],43:[function(require,module,exports){
+},{"./core.js":41}],45:[function(require,module,exports){
 'use strict';
 
 module.exports = require('./core.js');
@@ -8224,7 +10751,7 @@ require('./es6-extensions.js');
 require('./node-extensions.js');
 require('./synchronous.js');
 
-},{"./core.js":39,"./done.js":40,"./es6-extensions.js":41,"./finally.js":42,"./node-extensions.js":44,"./synchronous.js":45}],44:[function(require,module,exports){
+},{"./core.js":41,"./done.js":42,"./es6-extensions.js":43,"./finally.js":44,"./node-extensions.js":46,"./synchronous.js":47}],46:[function(require,module,exports){
 'use strict';
 
 // This file contains then/promise specific extensions that are only useful
@@ -8356,7 +10883,7 @@ Promise.prototype.nodeify = function (callback, ctx) {
   });
 }
 
-},{"./core.js":39,"asap":46}],45:[function(require,module,exports){
+},{"./core.js":41,"asap":48}],47:[function(require,module,exports){
 'use strict';
 
 var Promise = require('./core.js');
@@ -8420,7 +10947,7 @@ Promise.disableSynchronous = function() {
   Promise.prototype.getState = undefined;
 };
 
-},{"./core.js":39}],46:[function(require,module,exports){
+},{"./core.js":41}],48:[function(require,module,exports){
 "use strict";
 
 // rawAsap provides everything we need except exception management.
@@ -8488,7 +11015,7 @@ RawTask.prototype.call = function () {
     }
 };
 
-},{"./raw":47}],47:[function(require,module,exports){
+},{"./raw":49}],49:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -8712,12 +11239,12 @@ rawAsap.makeRequestCallFromTimer = makeRequestCallFromTimer;
 // https://github.com/tildeio/rsvp.js/blob/cddf7232546a9cf858524b75cde6f9edf72620a7/lib/rsvp/asap.js
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],48:[function(require,module,exports){
+},{}],50:[function(require,module,exports){
 'use strict';
 
 module.exports = require('react/lib/ReactDOM');
 
-},{"react/lib/ReactDOM":86}],49:[function(require,module,exports){
+},{"react/lib/ReactDOM":88}],51:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -8742,7 +11269,7 @@ var AutoFocusUtils = {
 };
 
 module.exports = AutoFocusUtils;
-},{"./ReactDOMComponentTree":90,"fbjs/lib/focusNode":200}],50:[function(require,module,exports){
+},{"./ReactDOMComponentTree":92,"fbjs/lib/focusNode":202}],52:[function(require,module,exports){
 /**
  * Copyright 2013-present Facebook, Inc.
  * All rights reserved.
@@ -9131,7 +11658,7 @@ var BeforeInputEventPlugin = {
 };
 
 module.exports = BeforeInputEventPlugin;
-},{"./EventConstants":64,"./EventPropagators":68,"./FallbackCompositionState":69,"./SyntheticCompositionEvent":147,"./SyntheticInputEvent":151,"fbjs/lib/ExecutionEnvironment":192,"fbjs/lib/keyOf":210}],51:[function(require,module,exports){
+},{"./EventConstants":66,"./EventPropagators":70,"./FallbackCompositionState":71,"./SyntheticCompositionEvent":149,"./SyntheticInputEvent":153,"fbjs/lib/ExecutionEnvironment":194,"fbjs/lib/keyOf":212}],53:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -9280,7 +11807,7 @@ var CSSProperty = {
 };
 
 module.exports = CSSProperty;
-},{}],52:[function(require,module,exports){
+},{}],54:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -9488,7 +12015,7 @@ var CSSPropertyOperations = {
 
 module.exports = CSSPropertyOperations;
 }).call(this,require('_process'))
-},{"./CSSProperty":51,"./ReactInstrumentation":120,"./dangerousStyleValue":165,"_process":10,"fbjs/lib/ExecutionEnvironment":192,"fbjs/lib/camelizeStyleName":194,"fbjs/lib/hyphenateStyleName":205,"fbjs/lib/memoizeStringOnly":211,"fbjs/lib/warning":215}],53:[function(require,module,exports){
+},{"./CSSProperty":53,"./ReactInstrumentation":122,"./dangerousStyleValue":167,"_process":10,"fbjs/lib/ExecutionEnvironment":194,"fbjs/lib/camelizeStyleName":196,"fbjs/lib/hyphenateStyleName":207,"fbjs/lib/memoizeStringOnly":213,"fbjs/lib/warning":217}],55:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -9597,7 +12124,7 @@ PooledClass.addPoolingTo(CallbackQueue);
 
 module.exports = CallbackQueue;
 }).call(this,require('_process'))
-},{"./PooledClass":73,"./reactProdInvariant":184,"_process":10,"fbjs/lib/invariant":206,"object-assign":216}],54:[function(require,module,exports){
+},{"./PooledClass":75,"./reactProdInvariant":186,"_process":10,"fbjs/lib/invariant":208,"object-assign":218}],56:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -9923,7 +12450,7 @@ var ChangeEventPlugin = {
 };
 
 module.exports = ChangeEventPlugin;
-},{"./EventConstants":64,"./EventPluginHub":65,"./EventPropagators":68,"./ReactDOMComponentTree":90,"./ReactUpdates":140,"./SyntheticEvent":149,"./getEventTarget":173,"./isEventSupported":180,"./isTextInputElement":181,"fbjs/lib/ExecutionEnvironment":192,"fbjs/lib/keyOf":210}],55:[function(require,module,exports){
+},{"./EventConstants":66,"./EventPluginHub":67,"./EventPropagators":70,"./ReactDOMComponentTree":92,"./ReactUpdates":142,"./SyntheticEvent":151,"./getEventTarget":175,"./isEventSupported":182,"./isTextInputElement":183,"fbjs/lib/ExecutionEnvironment":194,"fbjs/lib/keyOf":212}],57:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -10120,7 +12647,7 @@ var DOMChildrenOperations = {
 
 module.exports = DOMChildrenOperations;
 }).call(this,require('_process'))
-},{"./DOMLazyTree":56,"./Danger":60,"./ReactDOMComponentTree":90,"./ReactInstrumentation":120,"./ReactMultiChildUpdateTypes":125,"./createMicrosoftUnsafeLocalFunction":164,"./setInnerHTML":186,"./setTextContent":187,"_process":10}],56:[function(require,module,exports){
+},{"./DOMLazyTree":58,"./Danger":62,"./ReactDOMComponentTree":92,"./ReactInstrumentation":122,"./ReactMultiChildUpdateTypes":127,"./createMicrosoftUnsafeLocalFunction":166,"./setInnerHTML":188,"./setTextContent":189,"_process":10}],58:[function(require,module,exports){
 /**
  * Copyright 2015-present, Facebook, Inc.
  * All rights reserved.
@@ -10239,7 +12766,7 @@ DOMLazyTree.queueHTML = queueHTML;
 DOMLazyTree.queueText = queueText;
 
 module.exports = DOMLazyTree;
-},{"./DOMNamespaces":57,"./createMicrosoftUnsafeLocalFunction":164,"./setInnerHTML":186,"./setTextContent":187}],57:[function(require,module,exports){
+},{"./DOMNamespaces":59,"./createMicrosoftUnsafeLocalFunction":166,"./setInnerHTML":188,"./setTextContent":189}],59:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -10260,7 +12787,7 @@ var DOMNamespaces = {
 };
 
 module.exports = DOMNamespaces;
-},{}],58:[function(require,module,exports){
+},{}],60:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -10469,7 +12996,7 @@ var DOMProperty = {
 
 module.exports = DOMProperty;
 }).call(this,require('_process'))
-},{"./reactProdInvariant":184,"_process":10,"fbjs/lib/invariant":206}],59:[function(require,module,exports){
+},{"./reactProdInvariant":186,"_process":10,"fbjs/lib/invariant":208}],61:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -10693,7 +13220,7 @@ var DOMPropertyOperations = {
 
 module.exports = DOMPropertyOperations;
 }).call(this,require('_process'))
-},{"./DOMProperty":58,"./ReactDOMComponentTree":90,"./ReactInstrumentation":120,"./quoteAttributeValueForBrowser":183,"_process":10,"fbjs/lib/warning":215}],60:[function(require,module,exports){
+},{"./DOMProperty":60,"./ReactDOMComponentTree":92,"./ReactInstrumentation":122,"./quoteAttributeValueForBrowser":185,"_process":10,"fbjs/lib/warning":217}],62:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -10744,7 +13271,7 @@ var Danger = {
 
 module.exports = Danger;
 }).call(this,require('_process'))
-},{"./DOMLazyTree":56,"./reactProdInvariant":184,"_process":10,"fbjs/lib/ExecutionEnvironment":192,"fbjs/lib/createNodesFromMarkup":197,"fbjs/lib/emptyFunction":198,"fbjs/lib/invariant":206}],61:[function(require,module,exports){
+},{"./DOMLazyTree":58,"./reactProdInvariant":186,"_process":10,"fbjs/lib/ExecutionEnvironment":194,"fbjs/lib/createNodesFromMarkup":199,"fbjs/lib/emptyFunction":200,"fbjs/lib/invariant":208}],63:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -10772,7 +13299,7 @@ var keyOf = require('fbjs/lib/keyOf');
 var DefaultEventPluginOrder = [keyOf({ ResponderEventPlugin: null }), keyOf({ SimpleEventPlugin: null }), keyOf({ TapEventPlugin: null }), keyOf({ EnterLeaveEventPlugin: null }), keyOf({ ChangeEventPlugin: null }), keyOf({ SelectEventPlugin: null }), keyOf({ BeforeInputEventPlugin: null })];
 
 module.exports = DefaultEventPluginOrder;
-},{"fbjs/lib/keyOf":210}],62:[function(require,module,exports){
+},{"fbjs/lib/keyOf":212}],64:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -10823,7 +13350,7 @@ var DisabledInputUtils = {
 };
 
 module.exports = DisabledInputUtils;
-},{}],63:[function(require,module,exports){
+},{}],65:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -10929,7 +13456,7 @@ var EnterLeaveEventPlugin = {
 };
 
 module.exports = EnterLeaveEventPlugin;
-},{"./EventConstants":64,"./EventPropagators":68,"./ReactDOMComponentTree":90,"./SyntheticMouseEvent":153,"fbjs/lib/keyOf":210}],64:[function(require,module,exports){
+},{"./EventConstants":66,"./EventPropagators":70,"./ReactDOMComponentTree":92,"./SyntheticMouseEvent":155,"fbjs/lib/keyOf":212}],66:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -11027,7 +13554,7 @@ var EventConstants = {
 };
 
 module.exports = EventConstants;
-},{"fbjs/lib/keyMirror":209}],65:[function(require,module,exports){
+},{"fbjs/lib/keyMirror":211}],67:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -11281,7 +13808,7 @@ var EventPluginHub = {
 
 module.exports = EventPluginHub;
 }).call(this,require('_process'))
-},{"./EventPluginRegistry":66,"./EventPluginUtils":67,"./ReactErrorUtils":111,"./accumulateInto":160,"./forEachAccumulated":169,"./reactProdInvariant":184,"_process":10,"fbjs/lib/invariant":206}],66:[function(require,module,exports){
+},{"./EventPluginRegistry":68,"./EventPluginUtils":69,"./ReactErrorUtils":113,"./accumulateInto":162,"./forEachAccumulated":171,"./reactProdInvariant":186,"_process":10,"fbjs/lib/invariant":208}],68:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -11531,7 +14058,7 @@ var EventPluginRegistry = {
 
 module.exports = EventPluginRegistry;
 }).call(this,require('_process'))
-},{"./reactProdInvariant":184,"_process":10,"fbjs/lib/invariant":206}],67:[function(require,module,exports){
+},{"./reactProdInvariant":186,"_process":10,"fbjs/lib/invariant":208}],69:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -11763,7 +14290,7 @@ var EventPluginUtils = {
 
 module.exports = EventPluginUtils;
 }).call(this,require('_process'))
-},{"./EventConstants":64,"./ReactErrorUtils":111,"./reactProdInvariant":184,"_process":10,"fbjs/lib/invariant":206,"fbjs/lib/warning":215}],68:[function(require,module,exports){
+},{"./EventConstants":66,"./ReactErrorUtils":113,"./reactProdInvariant":186,"_process":10,"fbjs/lib/invariant":208,"fbjs/lib/warning":217}],70:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -11903,7 +14430,7 @@ var EventPropagators = {
 
 module.exports = EventPropagators;
 }).call(this,require('_process'))
-},{"./EventConstants":64,"./EventPluginHub":65,"./EventPluginUtils":67,"./accumulateInto":160,"./forEachAccumulated":169,"_process":10,"fbjs/lib/warning":215}],69:[function(require,module,exports){
+},{"./EventConstants":66,"./EventPluginHub":67,"./EventPluginUtils":69,"./accumulateInto":162,"./forEachAccumulated":171,"_process":10,"fbjs/lib/warning":217}],71:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -11999,7 +14526,7 @@ _assign(FallbackCompositionState.prototype, {
 PooledClass.addPoolingTo(FallbackCompositionState);
 
 module.exports = FallbackCompositionState;
-},{"./PooledClass":73,"./getTextContentAccessor":177,"object-assign":216}],70:[function(require,module,exports){
+},{"./PooledClass":75,"./getTextContentAccessor":179,"object-assign":218}],72:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -12209,7 +14736,7 @@ var HTMLDOMPropertyConfig = {
 };
 
 module.exports = HTMLDOMPropertyConfig;
-},{"./DOMProperty":58}],71:[function(require,module,exports){
+},{"./DOMProperty":60}],73:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -12269,7 +14796,7 @@ var KeyEscapeUtils = {
 };
 
 module.exports = KeyEscapeUtils;
-},{}],72:[function(require,module,exports){
+},{}],74:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -12408,7 +14935,7 @@ var LinkedValueUtils = {
 
 module.exports = LinkedValueUtils;
 }).call(this,require('_process'))
-},{"./ReactPropTypeLocations":130,"./ReactPropTypes":131,"./ReactPropTypesSecret":132,"./reactProdInvariant":184,"_process":10,"fbjs/lib/invariant":206,"fbjs/lib/warning":215}],73:[function(require,module,exports){
+},{"./ReactPropTypeLocations":132,"./ReactPropTypes":133,"./ReactPropTypesSecret":134,"./reactProdInvariant":186,"_process":10,"fbjs/lib/invariant":208,"fbjs/lib/warning":217}],75:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -12532,7 +15059,7 @@ var PooledClass = {
 
 module.exports = PooledClass;
 }).call(this,require('_process'))
-},{"./reactProdInvariant":184,"_process":10,"fbjs/lib/invariant":206}],74:[function(require,module,exports){
+},{"./reactProdInvariant":186,"_process":10,"fbjs/lib/invariant":208}],76:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -12624,7 +15151,7 @@ var React = {
 
 module.exports = React;
 }).call(this,require('_process'))
-},{"./ReactChildren":77,"./ReactClass":79,"./ReactComponent":80,"./ReactDOMFactories":93,"./ReactElement":108,"./ReactElementValidator":109,"./ReactPropTypes":131,"./ReactPureComponent":133,"./ReactVersion":141,"./onlyChild":182,"_process":10,"fbjs/lib/warning":215,"object-assign":216}],75:[function(require,module,exports){
+},{"./ReactChildren":79,"./ReactClass":81,"./ReactComponent":82,"./ReactDOMFactories":95,"./ReactElement":110,"./ReactElementValidator":111,"./ReactPropTypes":133,"./ReactPureComponent":135,"./ReactVersion":143,"./onlyChild":184,"_process":10,"fbjs/lib/warning":217,"object-assign":218}],77:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -12942,7 +15469,7 @@ var ReactBrowserEventEmitter = _assign({}, ReactEventEmitterMixin, {
 });
 
 module.exports = ReactBrowserEventEmitter;
-},{"./EventConstants":64,"./EventPluginRegistry":66,"./ReactEventEmitterMixin":112,"./ViewportMetrics":159,"./getVendorPrefixedEventName":178,"./isEventSupported":180,"object-assign":216}],76:[function(require,module,exports){
+},{"./EventConstants":66,"./EventPluginRegistry":68,"./ReactEventEmitterMixin":114,"./ViewportMetrics":161,"./getVendorPrefixedEventName":180,"./isEventSupported":182,"object-assign":218}],78:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2014-present, Facebook, Inc.
@@ -13099,7 +15626,7 @@ var ReactChildReconciler = {
 
 module.exports = ReactChildReconciler;
 }).call(this,require('_process'))
-},{"./KeyEscapeUtils":71,"./ReactComponentTreeHook":83,"./ReactReconciler":135,"./instantiateReactComponent":179,"./shouldUpdateReactComponent":188,"./traverseAllChildren":189,"_process":10,"fbjs/lib/warning":215}],77:[function(require,module,exports){
+},{"./KeyEscapeUtils":73,"./ReactComponentTreeHook":85,"./ReactReconciler":137,"./instantiateReactComponent":181,"./shouldUpdateReactComponent":190,"./traverseAllChildren":191,"_process":10,"fbjs/lib/warning":217}],79:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -13291,7 +15818,7 @@ var ReactChildren = {
 };
 
 module.exports = ReactChildren;
-},{"./PooledClass":73,"./ReactElement":108,"./traverseAllChildren":189,"fbjs/lib/emptyFunction":198}],78:[function(require,module,exports){
+},{"./PooledClass":75,"./ReactElement":110,"./traverseAllChildren":191,"fbjs/lib/emptyFunction":200}],80:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -13348,7 +15875,7 @@ var ReactChildrenMutationWarningHook = {
 
 module.exports = ReactChildrenMutationWarningHook;
 }).call(this,require('_process'))
-},{"./ReactComponentTreeHook":83,"_process":10,"fbjs/lib/warning":215}],79:[function(require,module,exports){
+},{"./ReactComponentTreeHook":85,"_process":10,"fbjs/lib/warning":217}],81:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -14083,7 +16610,7 @@ var ReactClass = {
 
 module.exports = ReactClass;
 }).call(this,require('_process'))
-},{"./ReactComponent":80,"./ReactElement":108,"./ReactNoopUpdateQueue":127,"./ReactPropTypeLocationNames":129,"./ReactPropTypeLocations":130,"./reactProdInvariant":184,"_process":10,"fbjs/lib/emptyObject":199,"fbjs/lib/invariant":206,"fbjs/lib/keyMirror":209,"fbjs/lib/keyOf":210,"fbjs/lib/warning":215,"object-assign":216}],80:[function(require,module,exports){
+},{"./ReactComponent":82,"./ReactElement":110,"./ReactNoopUpdateQueue":129,"./ReactPropTypeLocationNames":131,"./ReactPropTypeLocations":132,"./reactProdInvariant":186,"_process":10,"fbjs/lib/emptyObject":201,"fbjs/lib/invariant":208,"fbjs/lib/keyMirror":211,"fbjs/lib/keyOf":212,"fbjs/lib/warning":217,"object-assign":218}],82:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -14204,7 +16731,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 module.exports = ReactComponent;
 }).call(this,require('_process'))
-},{"./ReactNoopUpdateQueue":127,"./canDefineProperty":162,"./reactProdInvariant":184,"_process":10,"fbjs/lib/emptyObject":199,"fbjs/lib/invariant":206,"fbjs/lib/warning":215}],81:[function(require,module,exports){
+},{"./ReactNoopUpdateQueue":129,"./canDefineProperty":164,"./reactProdInvariant":186,"_process":10,"fbjs/lib/emptyObject":201,"fbjs/lib/invariant":208,"fbjs/lib/warning":217}],83:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -14235,7 +16762,7 @@ var ReactComponentBrowserEnvironment = {
 };
 
 module.exports = ReactComponentBrowserEnvironment;
-},{"./DOMChildrenOperations":55,"./ReactDOMIDOperations":95}],82:[function(require,module,exports){
+},{"./DOMChildrenOperations":57,"./ReactDOMIDOperations":97}],84:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2014-present, Facebook, Inc.
@@ -14283,7 +16810,7 @@ var ReactComponentEnvironment = {
 
 module.exports = ReactComponentEnvironment;
 }).call(this,require('_process'))
-},{"./reactProdInvariant":184,"_process":10,"fbjs/lib/invariant":206}],83:[function(require,module,exports){
+},{"./reactProdInvariant":186,"_process":10,"fbjs/lib/invariant":208}],85:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2016-present, Facebook, Inc.
@@ -14628,7 +17155,7 @@ var ReactComponentTreeHook = {
 
 module.exports = ReactComponentTreeHook;
 }).call(this,require('_process'))
-},{"./ReactCurrentOwner":85,"./reactProdInvariant":184,"_process":10,"fbjs/lib/invariant":206,"fbjs/lib/warning":215}],84:[function(require,module,exports){
+},{"./ReactCurrentOwner":87,"./reactProdInvariant":186,"_process":10,"fbjs/lib/invariant":208,"fbjs/lib/warning":217}],86:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -15551,7 +18078,7 @@ var ReactCompositeComponent = {
 
 module.exports = ReactCompositeComponent;
 }).call(this,require('_process'))
-},{"./ReactComponentEnvironment":82,"./ReactCurrentOwner":85,"./ReactElement":108,"./ReactErrorUtils":111,"./ReactInstanceMap":119,"./ReactInstrumentation":120,"./ReactNodeTypes":126,"./ReactPropTypeLocations":130,"./ReactReconciler":135,"./checkReactTypeSpec":163,"./reactProdInvariant":184,"./shouldUpdateReactComponent":188,"_process":10,"fbjs/lib/emptyObject":199,"fbjs/lib/invariant":206,"fbjs/lib/shallowEqual":214,"fbjs/lib/warning":215,"object-assign":216}],85:[function(require,module,exports){
+},{"./ReactComponentEnvironment":84,"./ReactCurrentOwner":87,"./ReactElement":110,"./ReactErrorUtils":113,"./ReactInstanceMap":121,"./ReactInstrumentation":122,"./ReactNodeTypes":128,"./ReactPropTypeLocations":132,"./ReactReconciler":137,"./checkReactTypeSpec":165,"./reactProdInvariant":186,"./shouldUpdateReactComponent":190,"_process":10,"fbjs/lib/emptyObject":201,"fbjs/lib/invariant":208,"fbjs/lib/shallowEqual":216,"fbjs/lib/warning":217,"object-assign":218}],87:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -15583,7 +18110,7 @@ var ReactCurrentOwner = {
 };
 
 module.exports = ReactCurrentOwner;
-},{}],86:[function(require,module,exports){
+},{}],88:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -15696,7 +18223,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 module.exports = ReactDOM;
 }).call(this,require('_process'))
-},{"./ReactDOMComponentTree":90,"./ReactDOMNullInputValuePropHook":97,"./ReactDOMUnknownPropertyHook":104,"./ReactDefaultInjection":107,"./ReactInstrumentation":120,"./ReactMount":123,"./ReactReconciler":135,"./ReactUpdates":140,"./ReactVersion":141,"./findDOMNode":167,"./getHostComponentFromComposite":174,"./renderSubtreeIntoContainer":185,"_process":10,"fbjs/lib/ExecutionEnvironment":192,"fbjs/lib/warning":215}],87:[function(require,module,exports){
+},{"./ReactDOMComponentTree":92,"./ReactDOMNullInputValuePropHook":99,"./ReactDOMUnknownPropertyHook":106,"./ReactDefaultInjection":109,"./ReactInstrumentation":122,"./ReactMount":125,"./ReactReconciler":137,"./ReactUpdates":142,"./ReactVersion":143,"./findDOMNode":169,"./getHostComponentFromComposite":176,"./renderSubtreeIntoContainer":187,"_process":10,"fbjs/lib/ExecutionEnvironment":194,"fbjs/lib/warning":217}],89:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -15721,7 +18248,7 @@ var ReactDOMButton = {
 };
 
 module.exports = ReactDOMButton;
-},{"./DisabledInputUtils":62}],88:[function(require,module,exports){
+},{"./DisabledInputUtils":64}],90:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -16729,7 +19256,7 @@ _assign(ReactDOMComponent.prototype, ReactDOMComponent.Mixin, ReactMultiChild.Mi
 
 module.exports = ReactDOMComponent;
 }).call(this,require('_process'))
-},{"./AutoFocusUtils":49,"./CSSPropertyOperations":52,"./DOMLazyTree":56,"./DOMNamespaces":57,"./DOMProperty":58,"./DOMPropertyOperations":59,"./EventConstants":64,"./EventPluginHub":65,"./EventPluginRegistry":66,"./ReactBrowserEventEmitter":75,"./ReactDOMButton":87,"./ReactDOMComponentFlags":89,"./ReactDOMComponentTree":90,"./ReactDOMInput":96,"./ReactDOMOption":98,"./ReactDOMSelect":99,"./ReactDOMTextarea":102,"./ReactInstrumentation":120,"./ReactMultiChild":124,"./ReactServerRenderingTransaction":137,"./escapeTextContentForBrowser":166,"./isEventSupported":180,"./reactProdInvariant":184,"./validateDOMNesting":190,"_process":10,"fbjs/lib/emptyFunction":198,"fbjs/lib/invariant":206,"fbjs/lib/keyOf":210,"fbjs/lib/shallowEqual":214,"fbjs/lib/warning":215,"object-assign":216}],89:[function(require,module,exports){
+},{"./AutoFocusUtils":51,"./CSSPropertyOperations":54,"./DOMLazyTree":58,"./DOMNamespaces":59,"./DOMProperty":60,"./DOMPropertyOperations":61,"./EventConstants":66,"./EventPluginHub":67,"./EventPluginRegistry":68,"./ReactBrowserEventEmitter":77,"./ReactDOMButton":89,"./ReactDOMComponentFlags":91,"./ReactDOMComponentTree":92,"./ReactDOMInput":98,"./ReactDOMOption":100,"./ReactDOMSelect":101,"./ReactDOMTextarea":104,"./ReactInstrumentation":122,"./ReactMultiChild":126,"./ReactServerRenderingTransaction":139,"./escapeTextContentForBrowser":168,"./isEventSupported":182,"./reactProdInvariant":186,"./validateDOMNesting":192,"_process":10,"fbjs/lib/emptyFunction":200,"fbjs/lib/invariant":208,"fbjs/lib/keyOf":212,"fbjs/lib/shallowEqual":216,"fbjs/lib/warning":217,"object-assign":218}],91:[function(require,module,exports){
 /**
  * Copyright 2015-present, Facebook, Inc.
  * All rights reserved.
@@ -16748,7 +19275,7 @@ var ReactDOMComponentFlags = {
 };
 
 module.exports = ReactDOMComponentFlags;
-},{}],90:[function(require,module,exports){
+},{}],92:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -16939,7 +19466,7 @@ var ReactDOMComponentTree = {
 
 module.exports = ReactDOMComponentTree;
 }).call(this,require('_process'))
-},{"./DOMProperty":58,"./ReactDOMComponentFlags":89,"./reactProdInvariant":184,"_process":10,"fbjs/lib/invariant":206}],91:[function(require,module,exports){
+},{"./DOMProperty":60,"./ReactDOMComponentFlags":91,"./reactProdInvariant":186,"_process":10,"fbjs/lib/invariant":208}],93:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -16975,7 +19502,7 @@ function ReactDOMContainerInfo(topLevelWrapper, node) {
 
 module.exports = ReactDOMContainerInfo;
 }).call(this,require('_process'))
-},{"./validateDOMNesting":190,"_process":10}],92:[function(require,module,exports){
+},{"./validateDOMNesting":192,"_process":10}],94:[function(require,module,exports){
 /**
  * Copyright 2014-present, Facebook, Inc.
  * All rights reserved.
@@ -17036,7 +19563,7 @@ _assign(ReactDOMEmptyComponent.prototype, {
 });
 
 module.exports = ReactDOMEmptyComponent;
-},{"./DOMLazyTree":56,"./ReactDOMComponentTree":90,"object-assign":216}],93:[function(require,module,exports){
+},{"./DOMLazyTree":58,"./ReactDOMComponentTree":92,"object-assign":218}],95:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -17209,7 +19736,7 @@ var ReactDOMFactories = {
 
 module.exports = ReactDOMFactories;
 }).call(this,require('_process'))
-},{"./ReactElement":108,"./ReactElementValidator":109,"_process":10}],94:[function(require,module,exports){
+},{"./ReactElement":110,"./ReactElementValidator":111,"_process":10}],96:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -17228,7 +19755,7 @@ var ReactDOMFeatureFlags = {
 };
 
 module.exports = ReactDOMFeatureFlags;
-},{}],95:[function(require,module,exports){
+},{}],97:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -17263,7 +19790,7 @@ var ReactDOMIDOperations = {
 };
 
 module.exports = ReactDOMIDOperations;
-},{"./DOMChildrenOperations":55,"./ReactDOMComponentTree":90}],96:[function(require,module,exports){
+},{"./DOMChildrenOperations":57,"./ReactDOMComponentTree":92}],98:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -17535,7 +20062,7 @@ function _handleChange(event) {
 
 module.exports = ReactDOMInput;
 }).call(this,require('_process'))
-},{"./DOMPropertyOperations":59,"./DisabledInputUtils":62,"./LinkedValueUtils":72,"./ReactDOMComponentTree":90,"./ReactUpdates":140,"./reactProdInvariant":184,"_process":10,"fbjs/lib/invariant":206,"fbjs/lib/warning":215,"object-assign":216}],97:[function(require,module,exports){
+},{"./DOMPropertyOperations":61,"./DisabledInputUtils":64,"./LinkedValueUtils":74,"./ReactDOMComponentTree":92,"./ReactUpdates":142,"./reactProdInvariant":186,"_process":10,"fbjs/lib/invariant":208,"fbjs/lib/warning":217,"object-assign":218}],99:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -17581,7 +20108,7 @@ var ReactDOMNullInputValuePropHook = {
 
 module.exports = ReactDOMNullInputValuePropHook;
 }).call(this,require('_process'))
-},{"./ReactComponentTreeHook":83,"_process":10,"fbjs/lib/warning":215}],98:[function(require,module,exports){
+},{"./ReactComponentTreeHook":85,"_process":10,"fbjs/lib/warning":217}],100:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -17707,7 +20234,7 @@ var ReactDOMOption = {
 
 module.exports = ReactDOMOption;
 }).call(this,require('_process'))
-},{"./ReactChildren":77,"./ReactDOMComponentTree":90,"./ReactDOMSelect":99,"_process":10,"fbjs/lib/warning":215,"object-assign":216}],99:[function(require,module,exports){
+},{"./ReactChildren":79,"./ReactDOMComponentTree":92,"./ReactDOMSelect":101,"_process":10,"fbjs/lib/warning":217,"object-assign":218}],101:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -17911,7 +20438,7 @@ function _handleChange(event) {
 
 module.exports = ReactDOMSelect;
 }).call(this,require('_process'))
-},{"./DisabledInputUtils":62,"./LinkedValueUtils":72,"./ReactDOMComponentTree":90,"./ReactUpdates":140,"_process":10,"fbjs/lib/warning":215,"object-assign":216}],100:[function(require,module,exports){
+},{"./DisabledInputUtils":64,"./LinkedValueUtils":74,"./ReactDOMComponentTree":92,"./ReactUpdates":142,"_process":10,"fbjs/lib/warning":217,"object-assign":218}],102:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -18124,7 +20651,7 @@ var ReactDOMSelection = {
 };
 
 module.exports = ReactDOMSelection;
-},{"./getNodeForCharacterOffset":176,"./getTextContentAccessor":177,"fbjs/lib/ExecutionEnvironment":192}],101:[function(require,module,exports){
+},{"./getNodeForCharacterOffset":178,"./getTextContentAccessor":179,"fbjs/lib/ExecutionEnvironment":194}],103:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -18291,7 +20818,7 @@ _assign(ReactDOMTextComponent.prototype, {
 
 module.exports = ReactDOMTextComponent;
 }).call(this,require('_process'))
-},{"./DOMChildrenOperations":55,"./DOMLazyTree":56,"./ReactDOMComponentTree":90,"./escapeTextContentForBrowser":166,"./reactProdInvariant":184,"./validateDOMNesting":190,"_process":10,"fbjs/lib/invariant":206,"object-assign":216}],102:[function(require,module,exports){
+},{"./DOMChildrenOperations":57,"./DOMLazyTree":58,"./ReactDOMComponentTree":92,"./escapeTextContentForBrowser":168,"./reactProdInvariant":186,"./validateDOMNesting":192,"_process":10,"fbjs/lib/invariant":208,"object-assign":218}],104:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -18449,7 +20976,7 @@ function _handleChange(event) {
 
 module.exports = ReactDOMTextarea;
 }).call(this,require('_process'))
-},{"./DisabledInputUtils":62,"./LinkedValueUtils":72,"./ReactDOMComponentTree":90,"./ReactUpdates":140,"./reactProdInvariant":184,"_process":10,"fbjs/lib/invariant":206,"fbjs/lib/warning":215,"object-assign":216}],103:[function(require,module,exports){
+},{"./DisabledInputUtils":64,"./LinkedValueUtils":74,"./ReactDOMComponentTree":92,"./ReactUpdates":142,"./reactProdInvariant":186,"_process":10,"fbjs/lib/invariant":208,"fbjs/lib/warning":217,"object-assign":218}],105:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2015-present, Facebook, Inc.
@@ -18588,7 +21115,7 @@ module.exports = {
   traverseEnterLeave: traverseEnterLeave
 };
 }).call(this,require('_process'))
-},{"./reactProdInvariant":184,"_process":10,"fbjs/lib/invariant":206}],104:[function(require,module,exports){
+},{"./reactProdInvariant":186,"_process":10,"fbjs/lib/invariant":208}],106:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -18703,7 +21230,7 @@ var ReactDOMUnknownPropertyHook = {
 
 module.exports = ReactDOMUnknownPropertyHook;
 }).call(this,require('_process'))
-},{"./DOMProperty":58,"./EventPluginRegistry":66,"./ReactComponentTreeHook":83,"_process":10,"fbjs/lib/warning":215}],105:[function(require,module,exports){
+},{"./DOMProperty":60,"./EventPluginRegistry":68,"./ReactComponentTreeHook":85,"_process":10,"fbjs/lib/warning":217}],107:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2016-present, Facebook, Inc.
@@ -19013,7 +21540,7 @@ if (/[?&]react_perf\b/.test(url)) {
 
 module.exports = ReactDebugTool;
 }).call(this,require('_process'))
-},{"./ReactChildrenMutationWarningHook":78,"./ReactComponentTreeHook":83,"./ReactHostOperationHistoryHook":116,"./ReactInvalidSetStateWarningHook":121,"_process":10,"fbjs/lib/ExecutionEnvironment":192,"fbjs/lib/performanceNow":213,"fbjs/lib/warning":215}],106:[function(require,module,exports){
+},{"./ReactChildrenMutationWarningHook":80,"./ReactComponentTreeHook":85,"./ReactHostOperationHistoryHook":118,"./ReactInvalidSetStateWarningHook":123,"_process":10,"fbjs/lib/ExecutionEnvironment":194,"fbjs/lib/performanceNow":215,"fbjs/lib/warning":217}],108:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -19082,7 +21609,7 @@ var ReactDefaultBatchingStrategy = {
 };
 
 module.exports = ReactDefaultBatchingStrategy;
-},{"./ReactUpdates":140,"./Transaction":158,"fbjs/lib/emptyFunction":198,"object-assign":216}],107:[function(require,module,exports){
+},{"./ReactUpdates":142,"./Transaction":160,"fbjs/lib/emptyFunction":200,"object-assign":218}],109:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -19167,7 +21694,7 @@ function inject() {
 module.exports = {
   inject: inject
 };
-},{"./BeforeInputEventPlugin":50,"./ChangeEventPlugin":54,"./DefaultEventPluginOrder":61,"./EnterLeaveEventPlugin":63,"./HTMLDOMPropertyConfig":70,"./ReactComponentBrowserEnvironment":81,"./ReactDOMComponent":88,"./ReactDOMComponentTree":90,"./ReactDOMEmptyComponent":92,"./ReactDOMTextComponent":101,"./ReactDOMTreeTraversal":103,"./ReactDefaultBatchingStrategy":106,"./ReactEventListener":113,"./ReactInjection":117,"./ReactReconcileTransaction":134,"./SVGDOMPropertyConfig":142,"./SelectEventPlugin":143,"./SimpleEventPlugin":144}],108:[function(require,module,exports){
+},{"./BeforeInputEventPlugin":52,"./ChangeEventPlugin":56,"./DefaultEventPluginOrder":63,"./EnterLeaveEventPlugin":65,"./HTMLDOMPropertyConfig":72,"./ReactComponentBrowserEnvironment":83,"./ReactDOMComponent":90,"./ReactDOMComponentTree":92,"./ReactDOMEmptyComponent":94,"./ReactDOMTextComponent":103,"./ReactDOMTreeTraversal":105,"./ReactDefaultBatchingStrategy":108,"./ReactEventListener":115,"./ReactInjection":119,"./ReactReconcileTransaction":136,"./SVGDOMPropertyConfig":144,"./SelectEventPlugin":145,"./SimpleEventPlugin":146}],110:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2014-present, Facebook, Inc.
@@ -19534,7 +22061,7 @@ ReactElement.REACT_ELEMENT_TYPE = REACT_ELEMENT_TYPE;
 
 module.exports = ReactElement;
 }).call(this,require('_process'))
-},{"./ReactCurrentOwner":85,"./canDefineProperty":162,"_process":10,"fbjs/lib/warning":215,"object-assign":216}],109:[function(require,module,exports){
+},{"./ReactCurrentOwner":87,"./canDefineProperty":164,"_process":10,"fbjs/lib/warning":217,"object-assign":218}],111:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2014-present, Facebook, Inc.
@@ -19765,7 +22292,7 @@ var ReactElementValidator = {
 
 module.exports = ReactElementValidator;
 }).call(this,require('_process'))
-},{"./ReactComponentTreeHook":83,"./ReactCurrentOwner":85,"./ReactElement":108,"./ReactPropTypeLocations":130,"./canDefineProperty":162,"./checkReactTypeSpec":163,"./getIteratorFn":175,"_process":10,"fbjs/lib/warning":215}],110:[function(require,module,exports){
+},{"./ReactComponentTreeHook":85,"./ReactCurrentOwner":87,"./ReactElement":110,"./ReactPropTypeLocations":132,"./canDefineProperty":164,"./checkReactTypeSpec":165,"./getIteratorFn":177,"_process":10,"fbjs/lib/warning":217}],112:[function(require,module,exports){
 /**
  * Copyright 2014-present, Facebook, Inc.
  * All rights reserved.
@@ -19796,7 +22323,7 @@ var ReactEmptyComponent = {
 ReactEmptyComponent.injection = ReactEmptyComponentInjection;
 
 module.exports = ReactEmptyComponent;
-},{}],111:[function(require,module,exports){
+},{}],113:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -19875,7 +22402,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 module.exports = ReactErrorUtils;
 }).call(this,require('_process'))
-},{"_process":10}],112:[function(require,module,exports){
+},{"_process":10}],114:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -19909,7 +22436,7 @@ var ReactEventEmitterMixin = {
 };
 
 module.exports = ReactEventEmitterMixin;
-},{"./EventPluginHub":65}],113:[function(require,module,exports){
+},{"./EventPluginHub":67}],115:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -20067,7 +22594,7 @@ var ReactEventListener = {
 };
 
 module.exports = ReactEventListener;
-},{"./PooledClass":73,"./ReactDOMComponentTree":90,"./ReactUpdates":140,"./getEventTarget":173,"fbjs/lib/EventListener":191,"fbjs/lib/ExecutionEnvironment":192,"fbjs/lib/getUnboundedScrollPosition":203,"object-assign":216}],114:[function(require,module,exports){
+},{"./PooledClass":75,"./ReactDOMComponentTree":92,"./ReactUpdates":142,"./getEventTarget":175,"fbjs/lib/EventListener":193,"fbjs/lib/ExecutionEnvironment":194,"fbjs/lib/getUnboundedScrollPosition":205,"object-assign":218}],116:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -20090,7 +22617,7 @@ var ReactFeatureFlags = {
 };
 
 module.exports = ReactFeatureFlags;
-},{}],115:[function(require,module,exports){
+},{}],117:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2014-present, Facebook, Inc.
@@ -20169,7 +22696,7 @@ var ReactHostComponent = {
 
 module.exports = ReactHostComponent;
 }).call(this,require('_process'))
-},{"./reactProdInvariant":184,"_process":10,"fbjs/lib/invariant":206,"object-assign":216}],116:[function(require,module,exports){
+},{"./reactProdInvariant":186,"_process":10,"fbjs/lib/invariant":208,"object-assign":218}],118:[function(require,module,exports){
 /**
  * Copyright 2016-present, Facebook, Inc.
  * All rights reserved.
@@ -20207,7 +22734,7 @@ var ReactHostOperationHistoryHook = {
 };
 
 module.exports = ReactHostOperationHistoryHook;
-},{}],117:[function(require,module,exports){
+},{}],119:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -20244,7 +22771,7 @@ var ReactInjection = {
 };
 
 module.exports = ReactInjection;
-},{"./DOMProperty":58,"./EventPluginHub":65,"./EventPluginUtils":67,"./ReactBrowserEventEmitter":75,"./ReactClass":79,"./ReactComponentEnvironment":82,"./ReactEmptyComponent":110,"./ReactHostComponent":115,"./ReactUpdates":140}],118:[function(require,module,exports){
+},{"./DOMProperty":60,"./EventPluginHub":67,"./EventPluginUtils":69,"./ReactBrowserEventEmitter":77,"./ReactClass":81,"./ReactComponentEnvironment":84,"./ReactEmptyComponent":112,"./ReactHostComponent":117,"./ReactUpdates":142}],120:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -20369,7 +22896,7 @@ var ReactInputSelection = {
 };
 
 module.exports = ReactInputSelection;
-},{"./ReactDOMSelection":100,"fbjs/lib/containsNode":195,"fbjs/lib/focusNode":200,"fbjs/lib/getActiveElement":201}],119:[function(require,module,exports){
+},{"./ReactDOMSelection":102,"fbjs/lib/containsNode":197,"fbjs/lib/focusNode":202,"fbjs/lib/getActiveElement":203}],121:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -20418,7 +22945,7 @@ var ReactInstanceMap = {
 };
 
 module.exports = ReactInstanceMap;
-},{}],120:[function(require,module,exports){
+},{}],122:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2016-present, Facebook, Inc.
@@ -20442,7 +22969,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 module.exports = { debugTool: debugTool };
 }).call(this,require('_process'))
-},{"./ReactDebugTool":105,"_process":10}],121:[function(require,module,exports){
+},{"./ReactDebugTool":107,"_process":10}],123:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2016-present, Facebook, Inc.
@@ -20481,7 +23008,7 @@ var ReactInvalidSetStateWarningHook = {
 
 module.exports = ReactInvalidSetStateWarningHook;
 }).call(this,require('_process'))
-},{"_process":10,"fbjs/lib/warning":215}],122:[function(require,module,exports){
+},{"_process":10,"fbjs/lib/warning":217}],124:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -20532,7 +23059,7 @@ var ReactMarkupChecksum = {
 };
 
 module.exports = ReactMarkupChecksum;
-},{"./adler32":161}],123:[function(require,module,exports){
+},{"./adler32":163}],125:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -21069,7 +23596,7 @@ var ReactMount = {
 
 module.exports = ReactMount;
 }).call(this,require('_process'))
-},{"./DOMLazyTree":56,"./DOMProperty":58,"./ReactBrowserEventEmitter":75,"./ReactCurrentOwner":85,"./ReactDOMComponentTree":90,"./ReactDOMContainerInfo":91,"./ReactDOMFeatureFlags":94,"./ReactElement":108,"./ReactFeatureFlags":114,"./ReactInstanceMap":119,"./ReactInstrumentation":120,"./ReactMarkupChecksum":122,"./ReactReconciler":135,"./ReactUpdateQueue":139,"./ReactUpdates":140,"./instantiateReactComponent":179,"./reactProdInvariant":184,"./setInnerHTML":186,"./shouldUpdateReactComponent":188,"_process":10,"fbjs/lib/emptyObject":199,"fbjs/lib/invariant":206,"fbjs/lib/warning":215}],124:[function(require,module,exports){
+},{"./DOMLazyTree":58,"./DOMProperty":60,"./ReactBrowserEventEmitter":77,"./ReactCurrentOwner":87,"./ReactDOMComponentTree":92,"./ReactDOMContainerInfo":93,"./ReactDOMFeatureFlags":96,"./ReactElement":110,"./ReactFeatureFlags":116,"./ReactInstanceMap":121,"./ReactInstrumentation":122,"./ReactMarkupChecksum":124,"./ReactReconciler":137,"./ReactUpdateQueue":141,"./ReactUpdates":142,"./instantiateReactComponent":181,"./reactProdInvariant":186,"./setInnerHTML":188,"./shouldUpdateReactComponent":190,"_process":10,"fbjs/lib/emptyObject":201,"fbjs/lib/invariant":208,"fbjs/lib/warning":217}],126:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -21523,7 +24050,7 @@ var ReactMultiChild = {
 
 module.exports = ReactMultiChild;
 }).call(this,require('_process'))
-},{"./ReactChildReconciler":76,"./ReactComponentEnvironment":82,"./ReactCurrentOwner":85,"./ReactInstanceMap":119,"./ReactInstrumentation":120,"./ReactMultiChildUpdateTypes":125,"./ReactReconciler":135,"./flattenChildren":168,"./reactProdInvariant":184,"_process":10,"fbjs/lib/emptyFunction":198,"fbjs/lib/invariant":206}],125:[function(require,module,exports){
+},{"./ReactChildReconciler":78,"./ReactComponentEnvironment":84,"./ReactCurrentOwner":87,"./ReactInstanceMap":121,"./ReactInstrumentation":122,"./ReactMultiChildUpdateTypes":127,"./ReactReconciler":137,"./flattenChildren":170,"./reactProdInvariant":186,"_process":10,"fbjs/lib/emptyFunction":200,"fbjs/lib/invariant":208}],127:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -21556,7 +24083,7 @@ var ReactMultiChildUpdateTypes = keyMirror({
 });
 
 module.exports = ReactMultiChildUpdateTypes;
-},{"fbjs/lib/keyMirror":209}],126:[function(require,module,exports){
+},{"fbjs/lib/keyMirror":211}],128:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -21599,7 +24126,7 @@ var ReactNodeTypes = {
 
 module.exports = ReactNodeTypes;
 }).call(this,require('_process'))
-},{"./ReactElement":108,"./reactProdInvariant":184,"_process":10,"fbjs/lib/invariant":206}],127:[function(require,module,exports){
+},{"./ReactElement":110,"./reactProdInvariant":186,"_process":10,"fbjs/lib/invariant":208}],129:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2015-present, Facebook, Inc.
@@ -21698,7 +24225,7 @@ var ReactNoopUpdateQueue = {
 
 module.exports = ReactNoopUpdateQueue;
 }).call(this,require('_process'))
-},{"_process":10,"fbjs/lib/warning":215}],128:[function(require,module,exports){
+},{"_process":10,"fbjs/lib/warning":217}],130:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -21795,7 +24322,7 @@ var ReactOwner = {
 
 module.exports = ReactOwner;
 }).call(this,require('_process'))
-},{"./reactProdInvariant":184,"_process":10,"fbjs/lib/invariant":206}],129:[function(require,module,exports){
+},{"./reactProdInvariant":186,"_process":10,"fbjs/lib/invariant":208}],131:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -21822,7 +24349,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 module.exports = ReactPropTypeLocationNames;
 }).call(this,require('_process'))
-},{"_process":10}],130:[function(require,module,exports){
+},{"_process":10}],132:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -21845,7 +24372,7 @@ var ReactPropTypeLocations = keyMirror({
 });
 
 module.exports = ReactPropTypeLocations;
-},{"fbjs/lib/keyMirror":209}],131:[function(require,module,exports){
+},{"fbjs/lib/keyMirror":211}],133:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -22279,7 +24806,7 @@ function getClassName(propValue) {
 
 module.exports = ReactPropTypes;
 }).call(this,require('_process'))
-},{"./ReactElement":108,"./ReactPropTypeLocationNames":129,"./ReactPropTypesSecret":132,"./getIteratorFn":175,"_process":10,"fbjs/lib/emptyFunction":198,"fbjs/lib/warning":215}],132:[function(require,module,exports){
+},{"./ReactElement":110,"./ReactPropTypeLocationNames":131,"./ReactPropTypesSecret":134,"./getIteratorFn":177,"_process":10,"fbjs/lib/emptyFunction":200,"fbjs/lib/warning":217}],134:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -22296,7 +24823,7 @@ module.exports = ReactPropTypes;
 var ReactPropTypesSecret = 'SECRET_DO_NOT_PASS_THIS_OR_YOU_WILL_BE_FIRED';
 
 module.exports = ReactPropTypesSecret;
-},{}],133:[function(require,module,exports){
+},{}],135:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -22339,7 +24866,7 @@ _assign(ReactPureComponent.prototype, ReactComponent.prototype);
 ReactPureComponent.prototype.isPureReactComponent = true;
 
 module.exports = ReactPureComponent;
-},{"./ReactComponent":80,"./ReactNoopUpdateQueue":127,"fbjs/lib/emptyObject":199,"object-assign":216}],134:[function(require,module,exports){
+},{"./ReactComponent":82,"./ReactNoopUpdateQueue":129,"fbjs/lib/emptyObject":201,"object-assign":218}],136:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -22520,7 +25047,7 @@ PooledClass.addPoolingTo(ReactReconcileTransaction);
 
 module.exports = ReactReconcileTransaction;
 }).call(this,require('_process'))
-},{"./CallbackQueue":53,"./PooledClass":73,"./ReactBrowserEventEmitter":75,"./ReactInputSelection":118,"./ReactInstrumentation":120,"./ReactUpdateQueue":139,"./Transaction":158,"_process":10,"object-assign":216}],135:[function(require,module,exports){
+},{"./CallbackQueue":55,"./PooledClass":75,"./ReactBrowserEventEmitter":77,"./ReactInputSelection":120,"./ReactInstrumentation":122,"./ReactUpdateQueue":141,"./Transaction":160,"_process":10,"object-assign":218}],137:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -22691,7 +25218,7 @@ var ReactReconciler = {
 
 module.exports = ReactReconciler;
 }).call(this,require('_process'))
-},{"./ReactInstrumentation":120,"./ReactRef":136,"_process":10,"fbjs/lib/warning":215}],136:[function(require,module,exports){
+},{"./ReactInstrumentation":122,"./ReactRef":138,"_process":10,"fbjs/lib/warning":217}],138:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -22772,7 +25299,7 @@ ReactRef.detachRefs = function (instance, element) {
 };
 
 module.exports = ReactRef;
-},{"./ReactOwner":128}],137:[function(require,module,exports){
+},{"./ReactOwner":130}],139:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2014-present, Facebook, Inc.
@@ -22865,7 +25392,7 @@ PooledClass.addPoolingTo(ReactServerRenderingTransaction);
 
 module.exports = ReactServerRenderingTransaction;
 }).call(this,require('_process'))
-},{"./PooledClass":73,"./ReactInstrumentation":120,"./ReactServerUpdateQueue":138,"./Transaction":158,"_process":10,"object-assign":216}],138:[function(require,module,exports){
+},{"./PooledClass":75,"./ReactInstrumentation":122,"./ReactServerUpdateQueue":140,"./Transaction":160,"_process":10,"object-assign":218}],140:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2015-present, Facebook, Inc.
@@ -23009,7 +25536,7 @@ var ReactServerUpdateQueue = function () {
 
 module.exports = ReactServerUpdateQueue;
 }).call(this,require('_process'))
-},{"./ReactUpdateQueue":139,"./Transaction":158,"_process":10,"fbjs/lib/warning":215}],139:[function(require,module,exports){
+},{"./ReactUpdateQueue":141,"./Transaction":160,"_process":10,"fbjs/lib/warning":217}],141:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2015-present, Facebook, Inc.
@@ -23238,7 +25765,7 @@ var ReactUpdateQueue = {
 
 module.exports = ReactUpdateQueue;
 }).call(this,require('_process'))
-},{"./ReactCurrentOwner":85,"./ReactInstanceMap":119,"./ReactInstrumentation":120,"./ReactUpdates":140,"./reactProdInvariant":184,"_process":10,"fbjs/lib/invariant":206,"fbjs/lib/warning":215}],140:[function(require,module,exports){
+},{"./ReactCurrentOwner":87,"./ReactInstanceMap":121,"./ReactInstrumentation":122,"./ReactUpdates":142,"./reactProdInvariant":186,"_process":10,"fbjs/lib/invariant":208,"fbjs/lib/warning":217}],142:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -23492,7 +26019,7 @@ var ReactUpdates = {
 
 module.exports = ReactUpdates;
 }).call(this,require('_process'))
-},{"./CallbackQueue":53,"./PooledClass":73,"./ReactFeatureFlags":114,"./ReactReconciler":135,"./Transaction":158,"./reactProdInvariant":184,"_process":10,"fbjs/lib/invariant":206,"object-assign":216}],141:[function(require,module,exports){
+},{"./CallbackQueue":55,"./PooledClass":75,"./ReactFeatureFlags":116,"./ReactReconciler":137,"./Transaction":160,"./reactProdInvariant":186,"_process":10,"fbjs/lib/invariant":208,"object-assign":218}],143:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -23507,7 +26034,7 @@ module.exports = ReactUpdates;
 'use strict';
 
 module.exports = '15.3.1';
-},{}],142:[function(require,module,exports){
+},{}],144:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -23810,7 +26337,7 @@ Object.keys(ATTRS).forEach(function (key) {
 });
 
 module.exports = SVGDOMPropertyConfig;
-},{}],143:[function(require,module,exports){
+},{}],145:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -24007,7 +26534,7 @@ var SelectEventPlugin = {
 };
 
 module.exports = SelectEventPlugin;
-},{"./EventConstants":64,"./EventPropagators":68,"./ReactDOMComponentTree":90,"./ReactInputSelection":118,"./SyntheticEvent":149,"./isTextInputElement":181,"fbjs/lib/ExecutionEnvironment":192,"fbjs/lib/getActiveElement":201,"fbjs/lib/keyOf":210,"fbjs/lib/shallowEqual":214}],144:[function(require,module,exports){
+},{"./EventConstants":66,"./EventPropagators":70,"./ReactDOMComponentTree":92,"./ReactInputSelection":120,"./SyntheticEvent":151,"./isTextInputElement":183,"fbjs/lib/ExecutionEnvironment":194,"fbjs/lib/getActiveElement":203,"fbjs/lib/keyOf":212,"fbjs/lib/shallowEqual":216}],146:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -24645,7 +27172,7 @@ var SimpleEventPlugin = {
 
 module.exports = SimpleEventPlugin;
 }).call(this,require('_process'))
-},{"./EventConstants":64,"./EventPropagators":68,"./ReactDOMComponentTree":90,"./SyntheticAnimationEvent":145,"./SyntheticClipboardEvent":146,"./SyntheticDragEvent":148,"./SyntheticEvent":149,"./SyntheticFocusEvent":150,"./SyntheticKeyboardEvent":152,"./SyntheticMouseEvent":153,"./SyntheticTouchEvent":154,"./SyntheticTransitionEvent":155,"./SyntheticUIEvent":156,"./SyntheticWheelEvent":157,"./getEventCharCode":170,"./reactProdInvariant":184,"_process":10,"fbjs/lib/EventListener":191,"fbjs/lib/emptyFunction":198,"fbjs/lib/invariant":206,"fbjs/lib/keyOf":210}],145:[function(require,module,exports){
+},{"./EventConstants":66,"./EventPropagators":70,"./ReactDOMComponentTree":92,"./SyntheticAnimationEvent":147,"./SyntheticClipboardEvent":148,"./SyntheticDragEvent":150,"./SyntheticEvent":151,"./SyntheticFocusEvent":152,"./SyntheticKeyboardEvent":154,"./SyntheticMouseEvent":155,"./SyntheticTouchEvent":156,"./SyntheticTransitionEvent":157,"./SyntheticUIEvent":158,"./SyntheticWheelEvent":159,"./getEventCharCode":172,"./reactProdInvariant":186,"_process":10,"fbjs/lib/EventListener":193,"fbjs/lib/emptyFunction":200,"fbjs/lib/invariant":208,"fbjs/lib/keyOf":212}],147:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -24685,7 +27212,7 @@ function SyntheticAnimationEvent(dispatchConfig, dispatchMarker, nativeEvent, na
 SyntheticEvent.augmentClass(SyntheticAnimationEvent, AnimationEventInterface);
 
 module.exports = SyntheticAnimationEvent;
-},{"./SyntheticEvent":149}],146:[function(require,module,exports){
+},{"./SyntheticEvent":151}],148:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -24724,7 +27251,7 @@ function SyntheticClipboardEvent(dispatchConfig, dispatchMarker, nativeEvent, na
 SyntheticEvent.augmentClass(SyntheticClipboardEvent, ClipboardEventInterface);
 
 module.exports = SyntheticClipboardEvent;
-},{"./SyntheticEvent":149}],147:[function(require,module,exports){
+},{"./SyntheticEvent":151}],149:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -24761,7 +27288,7 @@ function SyntheticCompositionEvent(dispatchConfig, dispatchMarker, nativeEvent, 
 SyntheticEvent.augmentClass(SyntheticCompositionEvent, CompositionEventInterface);
 
 module.exports = SyntheticCompositionEvent;
-},{"./SyntheticEvent":149}],148:[function(require,module,exports){
+},{"./SyntheticEvent":151}],150:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -24798,7 +27325,7 @@ function SyntheticDragEvent(dispatchConfig, dispatchMarker, nativeEvent, nativeE
 SyntheticMouseEvent.augmentClass(SyntheticDragEvent, DragEventInterface);
 
 module.exports = SyntheticDragEvent;
-},{"./SyntheticMouseEvent":153}],149:[function(require,module,exports){
+},{"./SyntheticMouseEvent":155}],151:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -25068,7 +27595,7 @@ function getPooledWarningPropertyDefinition(propName, getVal) {
   }
 }
 }).call(this,require('_process'))
-},{"./PooledClass":73,"_process":10,"fbjs/lib/emptyFunction":198,"fbjs/lib/warning":215,"object-assign":216}],150:[function(require,module,exports){
+},{"./PooledClass":75,"_process":10,"fbjs/lib/emptyFunction":200,"fbjs/lib/warning":217,"object-assign":218}],152:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -25105,7 +27632,7 @@ function SyntheticFocusEvent(dispatchConfig, dispatchMarker, nativeEvent, native
 SyntheticUIEvent.augmentClass(SyntheticFocusEvent, FocusEventInterface);
 
 module.exports = SyntheticFocusEvent;
-},{"./SyntheticUIEvent":156}],151:[function(require,module,exports){
+},{"./SyntheticUIEvent":158}],153:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -25143,7 +27670,7 @@ function SyntheticInputEvent(dispatchConfig, dispatchMarker, nativeEvent, native
 SyntheticEvent.augmentClass(SyntheticInputEvent, InputEventInterface);
 
 module.exports = SyntheticInputEvent;
-},{"./SyntheticEvent":149}],152:[function(require,module,exports){
+},{"./SyntheticEvent":151}],154:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -25228,7 +27755,7 @@ function SyntheticKeyboardEvent(dispatchConfig, dispatchMarker, nativeEvent, nat
 SyntheticUIEvent.augmentClass(SyntheticKeyboardEvent, KeyboardEventInterface);
 
 module.exports = SyntheticKeyboardEvent;
-},{"./SyntheticUIEvent":156,"./getEventCharCode":170,"./getEventKey":171,"./getEventModifierState":172}],153:[function(require,module,exports){
+},{"./SyntheticUIEvent":158,"./getEventCharCode":172,"./getEventKey":173,"./getEventModifierState":174}],155:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -25301,7 +27828,7 @@ function SyntheticMouseEvent(dispatchConfig, dispatchMarker, nativeEvent, native
 SyntheticUIEvent.augmentClass(SyntheticMouseEvent, MouseEventInterface);
 
 module.exports = SyntheticMouseEvent;
-},{"./SyntheticUIEvent":156,"./ViewportMetrics":159,"./getEventModifierState":172}],154:[function(require,module,exports){
+},{"./SyntheticUIEvent":158,"./ViewportMetrics":161,"./getEventModifierState":174}],156:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -25347,7 +27874,7 @@ function SyntheticTouchEvent(dispatchConfig, dispatchMarker, nativeEvent, native
 SyntheticUIEvent.augmentClass(SyntheticTouchEvent, TouchEventInterface);
 
 module.exports = SyntheticTouchEvent;
-},{"./SyntheticUIEvent":156,"./getEventModifierState":172}],155:[function(require,module,exports){
+},{"./SyntheticUIEvent":158,"./getEventModifierState":174}],157:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -25387,7 +27914,7 @@ function SyntheticTransitionEvent(dispatchConfig, dispatchMarker, nativeEvent, n
 SyntheticEvent.augmentClass(SyntheticTransitionEvent, TransitionEventInterface);
 
 module.exports = SyntheticTransitionEvent;
-},{"./SyntheticEvent":149}],156:[function(require,module,exports){
+},{"./SyntheticEvent":151}],158:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -25447,7 +27974,7 @@ function SyntheticUIEvent(dispatchConfig, dispatchMarker, nativeEvent, nativeEve
 SyntheticEvent.augmentClass(SyntheticUIEvent, UIEventInterface);
 
 module.exports = SyntheticUIEvent;
-},{"./SyntheticEvent":149,"./getEventTarget":173}],157:[function(require,module,exports){
+},{"./SyntheticEvent":151,"./getEventTarget":175}],159:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -25502,7 +28029,7 @@ function SyntheticWheelEvent(dispatchConfig, dispatchMarker, nativeEvent, native
 SyntheticMouseEvent.augmentClass(SyntheticWheelEvent, WheelEventInterface);
 
 module.exports = SyntheticWheelEvent;
-},{"./SyntheticMouseEvent":153}],158:[function(require,module,exports){
+},{"./SyntheticMouseEvent":155}],160:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -25738,7 +28265,7 @@ var Transaction = {
 
 module.exports = Transaction;
 }).call(this,require('_process'))
-},{"./reactProdInvariant":184,"_process":10,"fbjs/lib/invariant":206}],159:[function(require,module,exports){
+},{"./reactProdInvariant":186,"_process":10,"fbjs/lib/invariant":208}],161:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -25766,7 +28293,7 @@ var ViewportMetrics = {
 };
 
 module.exports = ViewportMetrics;
-},{}],160:[function(require,module,exports){
+},{}],162:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2014-present, Facebook, Inc.
@@ -25827,7 +28354,7 @@ function accumulateInto(current, next) {
 
 module.exports = accumulateInto;
 }).call(this,require('_process'))
-},{"./reactProdInvariant":184,"_process":10,"fbjs/lib/invariant":206}],161:[function(require,module,exports){
+},{"./reactProdInvariant":186,"_process":10,"fbjs/lib/invariant":208}],163:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -25872,7 +28399,7 @@ function adler32(data) {
 }
 
 module.exports = adler32;
-},{}],162:[function(require,module,exports){
+},{}],164:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -25899,7 +28426,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 module.exports = canDefineProperty;
 }).call(this,require('_process'))
-},{"_process":10}],163:[function(require,module,exports){
+},{"_process":10}],165:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -25989,7 +28516,7 @@ function checkReactTypeSpec(typeSpecs, values, location, componentName, element,
 
 module.exports = checkReactTypeSpec;
 }).call(this,require('_process'))
-},{"./ReactComponentTreeHook":83,"./ReactPropTypeLocationNames":129,"./ReactPropTypesSecret":132,"./reactProdInvariant":184,"_process":10,"fbjs/lib/invariant":206,"fbjs/lib/warning":215}],164:[function(require,module,exports){
+},{"./ReactComponentTreeHook":85,"./ReactPropTypeLocationNames":131,"./ReactPropTypesSecret":134,"./reactProdInvariant":186,"_process":10,"fbjs/lib/invariant":208,"fbjs/lib/warning":217}],166:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -26022,7 +28549,7 @@ var createMicrosoftUnsafeLocalFunction = function (func) {
 };
 
 module.exports = createMicrosoftUnsafeLocalFunction;
-},{}],165:[function(require,module,exports){
+},{}],167:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -26104,7 +28631,7 @@ function dangerousStyleValue(name, value, component) {
 
 module.exports = dangerousStyleValue;
 }).call(this,require('_process'))
-},{"./CSSProperty":51,"_process":10,"fbjs/lib/warning":215}],166:[function(require,module,exports){
+},{"./CSSProperty":53,"_process":10,"fbjs/lib/warning":217}],168:[function(require,module,exports){
 /**
  * Copyright 2016-present, Facebook, Inc.
  * All rights reserved.
@@ -26228,7 +28755,7 @@ function escapeTextContentForBrowser(text) {
 }
 
 module.exports = escapeTextContentForBrowser;
-},{}],167:[function(require,module,exports){
+},{}],169:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -26291,7 +28818,7 @@ function findDOMNode(componentOrElement) {
 
 module.exports = findDOMNode;
 }).call(this,require('_process'))
-},{"./ReactCurrentOwner":85,"./ReactDOMComponentTree":90,"./ReactInstanceMap":119,"./getHostComponentFromComposite":174,"./reactProdInvariant":184,"_process":10,"fbjs/lib/invariant":206,"fbjs/lib/warning":215}],168:[function(require,module,exports){
+},{"./ReactCurrentOwner":87,"./ReactDOMComponentTree":92,"./ReactInstanceMap":121,"./getHostComponentFromComposite":176,"./reactProdInvariant":186,"_process":10,"fbjs/lib/invariant":208,"fbjs/lib/warning":217}],170:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -26370,7 +28897,7 @@ function flattenChildren(children, selfDebugID) {
 
 module.exports = flattenChildren;
 }).call(this,require('_process'))
-},{"./KeyEscapeUtils":71,"./ReactComponentTreeHook":83,"./traverseAllChildren":189,"_process":10,"fbjs/lib/warning":215}],169:[function(require,module,exports){
+},{"./KeyEscapeUtils":73,"./ReactComponentTreeHook":85,"./traverseAllChildren":191,"_process":10,"fbjs/lib/warning":217}],171:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -26402,7 +28929,7 @@ function forEachAccumulated(arr, cb, scope) {
 }
 
 module.exports = forEachAccumulated;
-},{}],170:[function(require,module,exports){
+},{}],172:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -26453,7 +28980,7 @@ function getEventCharCode(nativeEvent) {
 }
 
 module.exports = getEventCharCode;
-},{}],171:[function(require,module,exports){
+},{}],173:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -26556,7 +29083,7 @@ function getEventKey(nativeEvent) {
 }
 
 module.exports = getEventKey;
-},{"./getEventCharCode":170}],172:[function(require,module,exports){
+},{"./getEventCharCode":172}],174:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -26600,7 +29127,7 @@ function getEventModifierState(nativeEvent) {
 }
 
 module.exports = getEventModifierState;
-},{}],173:[function(require,module,exports){
+},{}],175:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -26636,7 +29163,7 @@ function getEventTarget(nativeEvent) {
 }
 
 module.exports = getEventTarget;
-},{}],174:[function(require,module,exports){
+},{}],176:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -26667,7 +29194,7 @@ function getHostComponentFromComposite(inst) {
 }
 
 module.exports = getHostComponentFromComposite;
-},{"./ReactNodeTypes":126}],175:[function(require,module,exports){
+},{"./ReactNodeTypes":128}],177:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -26709,7 +29236,7 @@ function getIteratorFn(maybeIterable) {
 }
 
 module.exports = getIteratorFn;
-},{}],176:[function(require,module,exports){
+},{}],178:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -26784,7 +29311,7 @@ function getNodeForCharacterOffset(root, offset) {
 }
 
 module.exports = getNodeForCharacterOffset;
-},{}],177:[function(require,module,exports){
+},{}],179:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -26818,7 +29345,7 @@ function getTextContentAccessor() {
 }
 
 module.exports = getTextContentAccessor;
-},{"fbjs/lib/ExecutionEnvironment":192}],178:[function(require,module,exports){
+},{"fbjs/lib/ExecutionEnvironment":194}],180:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -26920,7 +29447,7 @@ function getVendorPrefixedEventName(eventName) {
 }
 
 module.exports = getVendorPrefixedEventName;
-},{"fbjs/lib/ExecutionEnvironment":192}],179:[function(require,module,exports){
+},{"fbjs/lib/ExecutionEnvironment":194}],181:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -27042,7 +29569,7 @@ function instantiateReactComponent(node, shouldHaveDebugID) {
 
 module.exports = instantiateReactComponent;
 }).call(this,require('_process'))
-},{"./ReactCompositeComponent":84,"./ReactEmptyComponent":110,"./ReactHostComponent":115,"./reactProdInvariant":184,"_process":10,"fbjs/lib/invariant":206,"fbjs/lib/warning":215,"object-assign":216}],180:[function(require,module,exports){
+},{"./ReactCompositeComponent":86,"./ReactEmptyComponent":112,"./ReactHostComponent":117,"./reactProdInvariant":186,"_process":10,"fbjs/lib/invariant":208,"fbjs/lib/warning":217,"object-assign":218}],182:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -27103,7 +29630,7 @@ function isEventSupported(eventNameSuffix, capture) {
 }
 
 module.exports = isEventSupported;
-},{"fbjs/lib/ExecutionEnvironment":192}],181:[function(require,module,exports){
+},{"fbjs/lib/ExecutionEnvironment":194}],183:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -27155,7 +29682,7 @@ function isTextInputElement(elem) {
 }
 
 module.exports = isTextInputElement;
-},{}],182:[function(require,module,exports){
+},{}],184:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -27196,7 +29723,7 @@ function onlyChild(children) {
 
 module.exports = onlyChild;
 }).call(this,require('_process'))
-},{"./ReactElement":108,"./reactProdInvariant":184,"_process":10,"fbjs/lib/invariant":206}],183:[function(require,module,exports){
+},{"./ReactElement":110,"./reactProdInvariant":186,"_process":10,"fbjs/lib/invariant":208}],185:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -27223,7 +29750,7 @@ function quoteAttributeValueForBrowser(value) {
 }
 
 module.exports = quoteAttributeValueForBrowser;
-},{"./escapeTextContentForBrowser":166}],184:[function(require,module,exports){
+},{"./escapeTextContentForBrowser":168}],186:[function(require,module,exports){
 /**
  * Copyright (c) 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -27263,7 +29790,7 @@ function reactProdInvariant(code) {
 }
 
 module.exports = reactProdInvariant;
-},{}],185:[function(require,module,exports){
+},{}],187:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -27280,7 +29807,7 @@ module.exports = reactProdInvariant;
 var ReactMount = require('./ReactMount');
 
 module.exports = ReactMount.renderSubtreeIntoContainer;
-},{"./ReactMount":123}],186:[function(require,module,exports){
+},{"./ReactMount":125}],188:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -27379,7 +29906,7 @@ if (ExecutionEnvironment.canUseDOM) {
 }
 
 module.exports = setInnerHTML;
-},{"./DOMNamespaces":57,"./createMicrosoftUnsafeLocalFunction":164,"fbjs/lib/ExecutionEnvironment":192}],187:[function(require,module,exports){
+},{"./DOMNamespaces":59,"./createMicrosoftUnsafeLocalFunction":166,"fbjs/lib/ExecutionEnvironment":194}],189:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -27428,7 +29955,7 @@ if (ExecutionEnvironment.canUseDOM) {
 }
 
 module.exports = setTextContent;
-},{"./escapeTextContentForBrowser":166,"./setInnerHTML":186,"fbjs/lib/ExecutionEnvironment":192}],188:[function(require,module,exports){
+},{"./escapeTextContentForBrowser":168,"./setInnerHTML":188,"fbjs/lib/ExecutionEnvironment":194}],190:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -27471,7 +29998,7 @@ function shouldUpdateReactComponent(prevElement, nextElement) {
 }
 
 module.exports = shouldUpdateReactComponent;
-},{}],189:[function(require,module,exports){
+},{}],191:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-present, Facebook, Inc.
@@ -27641,7 +30168,7 @@ function traverseAllChildren(children, callback, traverseContext) {
 
 module.exports = traverseAllChildren;
 }).call(this,require('_process'))
-},{"./KeyEscapeUtils":71,"./ReactCurrentOwner":85,"./ReactElement":108,"./getIteratorFn":175,"./reactProdInvariant":184,"_process":10,"fbjs/lib/invariant":206,"fbjs/lib/warning":215}],190:[function(require,module,exports){
+},{"./KeyEscapeUtils":73,"./ReactCurrentOwner":87,"./ReactElement":110,"./getIteratorFn":177,"./reactProdInvariant":186,"_process":10,"fbjs/lib/invariant":208,"fbjs/lib/warning":217}],192:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2015-present, Facebook, Inc.
@@ -28013,7 +30540,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 module.exports = validateDOMNesting;
 }).call(this,require('_process'))
-},{"_process":10,"fbjs/lib/emptyFunction":198,"fbjs/lib/warning":215,"object-assign":216}],191:[function(require,module,exports){
+},{"_process":10,"fbjs/lib/emptyFunction":200,"fbjs/lib/warning":217,"object-assign":218}],193:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -28099,7 +30626,7 @@ var EventListener = {
 
 module.exports = EventListener;
 }).call(this,require('_process'))
-},{"./emptyFunction":198,"_process":10}],192:[function(require,module,exports){
+},{"./emptyFunction":200,"_process":10}],194:[function(require,module,exports){
 /**
  * Copyright (c) 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -28135,7 +30662,7 @@ var ExecutionEnvironment = {
 };
 
 module.exports = ExecutionEnvironment;
-},{}],193:[function(require,module,exports){
+},{}],195:[function(require,module,exports){
 "use strict";
 
 /**
@@ -28167,7 +30694,7 @@ function camelize(string) {
 }
 
 module.exports = camelize;
-},{}],194:[function(require,module,exports){
+},{}],196:[function(require,module,exports){
 /**
  * Copyright (c) 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -28207,7 +30734,7 @@ function camelizeStyleName(string) {
 }
 
 module.exports = camelizeStyleName;
-},{"./camelize":193}],195:[function(require,module,exports){
+},{"./camelize":195}],197:[function(require,module,exports){
 'use strict';
 
 /**
@@ -28247,7 +30774,7 @@ function containsNode(outerNode, innerNode) {
 }
 
 module.exports = containsNode;
-},{"./isTextNode":208}],196:[function(require,module,exports){
+},{"./isTextNode":210}],198:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -28376,7 +30903,7 @@ function createArrayFromMixed(obj) {
 
 module.exports = createArrayFromMixed;
 }).call(this,require('_process'))
-},{"./invariant":206,"_process":10}],197:[function(require,module,exports){
+},{"./invariant":208,"_process":10}],199:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -28462,7 +30989,7 @@ function createNodesFromMarkup(markup, handleScript) {
 
 module.exports = createNodesFromMarkup;
 }).call(this,require('_process'))
-},{"./ExecutionEnvironment":192,"./createArrayFromMixed":196,"./getMarkupWrap":202,"./invariant":206,"_process":10}],198:[function(require,module,exports){
+},{"./ExecutionEnvironment":194,"./createArrayFromMixed":198,"./getMarkupWrap":204,"./invariant":208,"_process":10}],200:[function(require,module,exports){
 "use strict";
 
 /**
@@ -28501,7 +31028,7 @@ emptyFunction.thatReturnsArgument = function (arg) {
 };
 
 module.exports = emptyFunction;
-},{}],199:[function(require,module,exports){
+},{}],201:[function(require,module,exports){
 (function (process){
 /**
  * Copyright (c) 2013-present, Facebook, Inc.
@@ -28523,7 +31050,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 module.exports = emptyObject;
 }).call(this,require('_process'))
-},{"_process":10}],200:[function(require,module,exports){
+},{"_process":10}],202:[function(require,module,exports){
 /**
  * Copyright (c) 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -28550,7 +31077,7 @@ function focusNode(node) {
 }
 
 module.exports = focusNode;
-},{}],201:[function(require,module,exports){
+},{}],203:[function(require,module,exports){
 'use strict';
 
 /**
@@ -28585,7 +31112,7 @@ function getActiveElement() /*?DOMElement*/{
 }
 
 module.exports = getActiveElement;
-},{}],202:[function(require,module,exports){
+},{}],204:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -28682,7 +31209,7 @@ function getMarkupWrap(nodeName) {
 
 module.exports = getMarkupWrap;
 }).call(this,require('_process'))
-},{"./ExecutionEnvironment":192,"./invariant":206,"_process":10}],203:[function(require,module,exports){
+},{"./ExecutionEnvironment":194,"./invariant":208,"_process":10}],205:[function(require,module,exports){
 /**
  * Copyright (c) 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -28721,7 +31248,7 @@ function getUnboundedScrollPosition(scrollable) {
 }
 
 module.exports = getUnboundedScrollPosition;
-},{}],204:[function(require,module,exports){
+},{}],206:[function(require,module,exports){
 'use strict';
 
 /**
@@ -28754,7 +31281,7 @@ function hyphenate(string) {
 }
 
 module.exports = hyphenate;
-},{}],205:[function(require,module,exports){
+},{}],207:[function(require,module,exports){
 /**
  * Copyright (c) 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -28793,7 +31320,7 @@ function hyphenateStyleName(string) {
 }
 
 module.exports = hyphenateStyleName;
-},{"./hyphenate":204}],206:[function(require,module,exports){
+},{"./hyphenate":206}],208:[function(require,module,exports){
 (function (process){
 /**
  * Copyright (c) 2013-present, Facebook, Inc.
@@ -28845,7 +31372,7 @@ function invariant(condition, format, a, b, c, d, e, f) {
 
 module.exports = invariant;
 }).call(this,require('_process'))
-},{"_process":10}],207:[function(require,module,exports){
+},{"_process":10}],209:[function(require,module,exports){
 'use strict';
 
 /**
@@ -28868,7 +31395,7 @@ function isNode(object) {
 }
 
 module.exports = isNode;
-},{}],208:[function(require,module,exports){
+},{}],210:[function(require,module,exports){
 'use strict';
 
 /**
@@ -28893,7 +31420,7 @@ function isTextNode(object) {
 }
 
 module.exports = isTextNode;
-},{"./isNode":207}],209:[function(require,module,exports){
+},{"./isNode":209}],211:[function(require,module,exports){
 (function (process){
 /**
  * Copyright (c) 2013-present, Facebook, Inc.
@@ -28943,7 +31470,7 @@ var keyMirror = function keyMirror(obj) {
 
 module.exports = keyMirror;
 }).call(this,require('_process'))
-},{"./invariant":206,"_process":10}],210:[function(require,module,exports){
+},{"./invariant":208,"_process":10}],212:[function(require,module,exports){
 "use strict";
 
 /**
@@ -28978,7 +31505,7 @@ var keyOf = function keyOf(oneKeyObj) {
 };
 
 module.exports = keyOf;
-},{}],211:[function(require,module,exports){
+},{}],213:[function(require,module,exports){
 /**
  * Copyright (c) 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -29008,7 +31535,7 @@ function memoizeStringOnly(callback) {
 }
 
 module.exports = memoizeStringOnly;
-},{}],212:[function(require,module,exports){
+},{}],214:[function(require,module,exports){
 /**
  * Copyright (c) 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -29031,7 +31558,7 @@ if (ExecutionEnvironment.canUseDOM) {
 }
 
 module.exports = performance || {};
-},{"./ExecutionEnvironment":192}],213:[function(require,module,exports){
+},{"./ExecutionEnvironment":194}],215:[function(require,module,exports){
 'use strict';
 
 /**
@@ -29065,7 +31592,7 @@ if (performance.now) {
 }
 
 module.exports = performanceNow;
-},{"./performance":212}],214:[function(require,module,exports){
+},{"./performance":214}],216:[function(require,module,exports){
 /**
  * Copyright (c) 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -29132,7 +31659,7 @@ function shallowEqual(objA, objB) {
 }
 
 module.exports = shallowEqual;
-},{}],215:[function(require,module,exports){
+},{}],217:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2014-2015, Facebook, Inc.
@@ -29201,7 +31728,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 module.exports = warning;
 }).call(this,require('_process'))
-},{"./emptyFunction":198,"_process":10}],216:[function(require,module,exports){
+},{"./emptyFunction":200,"_process":10}],218:[function(require,module,exports){
 'use strict';
 /* eslint-disable no-unused-vars */
 var hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -29286,12 +31813,1562 @@ module.exports = shouldUseNative() ? Object.assign : function (target, source) {
 	return to;
 };
 
-},{}],217:[function(require,module,exports){
+},{}],219:[function(require,module,exports){
 'use strict';
 
 module.exports = require('./lib/React');
 
-},{"./lib/React":74}],218:[function(require,module,exports){
+},{"./lib/React":76}],220:[function(require,module,exports){
+//     Underscore.js 1.8.3
+//     http://underscorejs.org
+//     (c) 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
+//     Underscore may be freely distributed under the MIT license.
+
+(function() {
+
+  // Baseline setup
+  // --------------
+
+  // Establish the root object, `window` in the browser, or `exports` on the server.
+  var root = this;
+
+  // Save the previous value of the `_` variable.
+  var previousUnderscore = root._;
+
+  // Save bytes in the minified (but not gzipped) version:
+  var ArrayProto = Array.prototype, ObjProto = Object.prototype, FuncProto = Function.prototype;
+
+  // Create quick reference variables for speed access to core prototypes.
+  var
+    push             = ArrayProto.push,
+    slice            = ArrayProto.slice,
+    toString         = ObjProto.toString,
+    hasOwnProperty   = ObjProto.hasOwnProperty;
+
+  // All **ECMAScript 5** native function implementations that we hope to use
+  // are declared here.
+  var
+    nativeIsArray      = Array.isArray,
+    nativeKeys         = Object.keys,
+    nativeBind         = FuncProto.bind,
+    nativeCreate       = Object.create;
+
+  // Naked function reference for surrogate-prototype-swapping.
+  var Ctor = function(){};
+
+  // Create a safe reference to the Underscore object for use below.
+  var _ = function(obj) {
+    if (obj instanceof _) return obj;
+    if (!(this instanceof _)) return new _(obj);
+    this._wrapped = obj;
+  };
+
+  // Export the Underscore object for **Node.js**, with
+  // backwards-compatibility for the old `require()` API. If we're in
+  // the browser, add `_` as a global object.
+  if (typeof exports !== 'undefined') {
+    if (typeof module !== 'undefined' && module.exports) {
+      exports = module.exports = _;
+    }
+    exports._ = _;
+  } else {
+    root._ = _;
+  }
+
+  // Current version.
+  _.VERSION = '1.8.3';
+
+  // Internal function that returns an efficient (for current engines) version
+  // of the passed-in callback, to be repeatedly applied in other Underscore
+  // functions.
+  var optimizeCb = function(func, context, argCount) {
+    if (context === void 0) return func;
+    switch (argCount == null ? 3 : argCount) {
+      case 1: return function(value) {
+        return func.call(context, value);
+      };
+      case 2: return function(value, other) {
+        return func.call(context, value, other);
+      };
+      case 3: return function(value, index, collection) {
+        return func.call(context, value, index, collection);
+      };
+      case 4: return function(accumulator, value, index, collection) {
+        return func.call(context, accumulator, value, index, collection);
+      };
+    }
+    return function() {
+      return func.apply(context, arguments);
+    };
+  };
+
+  // A mostly-internal function to generate callbacks that can be applied
+  // to each element in a collection, returning the desired result — either
+  // identity, an arbitrary callback, a property matcher, or a property accessor.
+  var cb = function(value, context, argCount) {
+    if (value == null) return _.identity;
+    if (_.isFunction(value)) return optimizeCb(value, context, argCount);
+    if (_.isObject(value)) return _.matcher(value);
+    return _.property(value);
+  };
+  _.iteratee = function(value, context) {
+    return cb(value, context, Infinity);
+  };
+
+  // An internal function for creating assigner functions.
+  var createAssigner = function(keysFunc, undefinedOnly) {
+    return function(obj) {
+      var length = arguments.length;
+      if (length < 2 || obj == null) return obj;
+      for (var index = 1; index < length; index++) {
+        var source = arguments[index],
+            keys = keysFunc(source),
+            l = keys.length;
+        for (var i = 0; i < l; i++) {
+          var key = keys[i];
+          if (!undefinedOnly || obj[key] === void 0) obj[key] = source[key];
+        }
+      }
+      return obj;
+    };
+  };
+
+  // An internal function for creating a new object that inherits from another.
+  var baseCreate = function(prototype) {
+    if (!_.isObject(prototype)) return {};
+    if (nativeCreate) return nativeCreate(prototype);
+    Ctor.prototype = prototype;
+    var result = new Ctor;
+    Ctor.prototype = null;
+    return result;
+  };
+
+  var property = function(key) {
+    return function(obj) {
+      return obj == null ? void 0 : obj[key];
+    };
+  };
+
+  // Helper for collection methods to determine whether a collection
+  // should be iterated as an array or as an object
+  // Related: http://people.mozilla.org/~jorendorff/es6-draft.html#sec-tolength
+  // Avoids a very nasty iOS 8 JIT bug on ARM-64. #2094
+  var MAX_ARRAY_INDEX = Math.pow(2, 53) - 1;
+  var getLength = property('length');
+  var isArrayLike = function(collection) {
+    var length = getLength(collection);
+    return typeof length == 'number' && length >= 0 && length <= MAX_ARRAY_INDEX;
+  };
+
+  // Collection Functions
+  // --------------------
+
+  // The cornerstone, an `each` implementation, aka `forEach`.
+  // Handles raw objects in addition to array-likes. Treats all
+  // sparse array-likes as if they were dense.
+  _.each = _.forEach = function(obj, iteratee, context) {
+    iteratee = optimizeCb(iteratee, context);
+    var i, length;
+    if (isArrayLike(obj)) {
+      for (i = 0, length = obj.length; i < length; i++) {
+        iteratee(obj[i], i, obj);
+      }
+    } else {
+      var keys = _.keys(obj);
+      for (i = 0, length = keys.length; i < length; i++) {
+        iteratee(obj[keys[i]], keys[i], obj);
+      }
+    }
+    return obj;
+  };
+
+  // Return the results of applying the iteratee to each element.
+  _.map = _.collect = function(obj, iteratee, context) {
+    iteratee = cb(iteratee, context);
+    var keys = !isArrayLike(obj) && _.keys(obj),
+        length = (keys || obj).length,
+        results = Array(length);
+    for (var index = 0; index < length; index++) {
+      var currentKey = keys ? keys[index] : index;
+      results[index] = iteratee(obj[currentKey], currentKey, obj);
+    }
+    return results;
+  };
+
+  // Create a reducing function iterating left or right.
+  function createReduce(dir) {
+    // Optimized iterator function as using arguments.length
+    // in the main function will deoptimize the, see #1991.
+    function iterator(obj, iteratee, memo, keys, index, length) {
+      for (; index >= 0 && index < length; index += dir) {
+        var currentKey = keys ? keys[index] : index;
+        memo = iteratee(memo, obj[currentKey], currentKey, obj);
+      }
+      return memo;
+    }
+
+    return function(obj, iteratee, memo, context) {
+      iteratee = optimizeCb(iteratee, context, 4);
+      var keys = !isArrayLike(obj) && _.keys(obj),
+          length = (keys || obj).length,
+          index = dir > 0 ? 0 : length - 1;
+      // Determine the initial value if none is provided.
+      if (arguments.length < 3) {
+        memo = obj[keys ? keys[index] : index];
+        index += dir;
+      }
+      return iterator(obj, iteratee, memo, keys, index, length);
+    };
+  }
+
+  // **Reduce** builds up a single result from a list of values, aka `inject`,
+  // or `foldl`.
+  _.reduce = _.foldl = _.inject = createReduce(1);
+
+  // The right-associative version of reduce, also known as `foldr`.
+  _.reduceRight = _.foldr = createReduce(-1);
+
+  // Return the first value which passes a truth test. Aliased as `detect`.
+  _.find = _.detect = function(obj, predicate, context) {
+    var key;
+    if (isArrayLike(obj)) {
+      key = _.findIndex(obj, predicate, context);
+    } else {
+      key = _.findKey(obj, predicate, context);
+    }
+    if (key !== void 0 && key !== -1) return obj[key];
+  };
+
+  // Return all the elements that pass a truth test.
+  // Aliased as `select`.
+  _.filter = _.select = function(obj, predicate, context) {
+    var results = [];
+    predicate = cb(predicate, context);
+    _.each(obj, function(value, index, list) {
+      if (predicate(value, index, list)) results.push(value);
+    });
+    return results;
+  };
+
+  // Return all the elements for which a truth test fails.
+  _.reject = function(obj, predicate, context) {
+    return _.filter(obj, _.negate(cb(predicate)), context);
+  };
+
+  // Determine whether all of the elements match a truth test.
+  // Aliased as `all`.
+  _.every = _.all = function(obj, predicate, context) {
+    predicate = cb(predicate, context);
+    var keys = !isArrayLike(obj) && _.keys(obj),
+        length = (keys || obj).length;
+    for (var index = 0; index < length; index++) {
+      var currentKey = keys ? keys[index] : index;
+      if (!predicate(obj[currentKey], currentKey, obj)) return false;
+    }
+    return true;
+  };
+
+  // Determine if at least one element in the object matches a truth test.
+  // Aliased as `any`.
+  _.some = _.any = function(obj, predicate, context) {
+    predicate = cb(predicate, context);
+    var keys = !isArrayLike(obj) && _.keys(obj),
+        length = (keys || obj).length;
+    for (var index = 0; index < length; index++) {
+      var currentKey = keys ? keys[index] : index;
+      if (predicate(obj[currentKey], currentKey, obj)) return true;
+    }
+    return false;
+  };
+
+  // Determine if the array or object contains a given item (using `===`).
+  // Aliased as `includes` and `include`.
+  _.contains = _.includes = _.include = function(obj, item, fromIndex, guard) {
+    if (!isArrayLike(obj)) obj = _.values(obj);
+    if (typeof fromIndex != 'number' || guard) fromIndex = 0;
+    return _.indexOf(obj, item, fromIndex) >= 0;
+  };
+
+  // Invoke a method (with arguments) on every item in a collection.
+  _.invoke = function(obj, method) {
+    var args = slice.call(arguments, 2);
+    var isFunc = _.isFunction(method);
+    return _.map(obj, function(value) {
+      var func = isFunc ? method : value[method];
+      return func == null ? func : func.apply(value, args);
+    });
+  };
+
+  // Convenience version of a common use case of `map`: fetching a property.
+  _.pluck = function(obj, key) {
+    return _.map(obj, _.property(key));
+  };
+
+  // Convenience version of a common use case of `filter`: selecting only objects
+  // containing specific `key:value` pairs.
+  _.where = function(obj, attrs) {
+    return _.filter(obj, _.matcher(attrs));
+  };
+
+  // Convenience version of a common use case of `find`: getting the first object
+  // containing specific `key:value` pairs.
+  _.findWhere = function(obj, attrs) {
+    return _.find(obj, _.matcher(attrs));
+  };
+
+  // Return the maximum element (or element-based computation).
+  _.max = function(obj, iteratee, context) {
+    var result = -Infinity, lastComputed = -Infinity,
+        value, computed;
+    if (iteratee == null && obj != null) {
+      obj = isArrayLike(obj) ? obj : _.values(obj);
+      for (var i = 0, length = obj.length; i < length; i++) {
+        value = obj[i];
+        if (value > result) {
+          result = value;
+        }
+      }
+    } else {
+      iteratee = cb(iteratee, context);
+      _.each(obj, function(value, index, list) {
+        computed = iteratee(value, index, list);
+        if (computed > lastComputed || computed === -Infinity && result === -Infinity) {
+          result = value;
+          lastComputed = computed;
+        }
+      });
+    }
+    return result;
+  };
+
+  // Return the minimum element (or element-based computation).
+  _.min = function(obj, iteratee, context) {
+    var result = Infinity, lastComputed = Infinity,
+        value, computed;
+    if (iteratee == null && obj != null) {
+      obj = isArrayLike(obj) ? obj : _.values(obj);
+      for (var i = 0, length = obj.length; i < length; i++) {
+        value = obj[i];
+        if (value < result) {
+          result = value;
+        }
+      }
+    } else {
+      iteratee = cb(iteratee, context);
+      _.each(obj, function(value, index, list) {
+        computed = iteratee(value, index, list);
+        if (computed < lastComputed || computed === Infinity && result === Infinity) {
+          result = value;
+          lastComputed = computed;
+        }
+      });
+    }
+    return result;
+  };
+
+  // Shuffle a collection, using the modern version of the
+  // [Fisher-Yates shuffle](http://en.wikipedia.org/wiki/Fisher–Yates_shuffle).
+  _.shuffle = function(obj) {
+    var set = isArrayLike(obj) ? obj : _.values(obj);
+    var length = set.length;
+    var shuffled = Array(length);
+    for (var index = 0, rand; index < length; index++) {
+      rand = _.random(0, index);
+      if (rand !== index) shuffled[index] = shuffled[rand];
+      shuffled[rand] = set[index];
+    }
+    return shuffled;
+  };
+
+  // Sample **n** random values from a collection.
+  // If **n** is not specified, returns a single random element.
+  // The internal `guard` argument allows it to work with `map`.
+  _.sample = function(obj, n, guard) {
+    if (n == null || guard) {
+      if (!isArrayLike(obj)) obj = _.values(obj);
+      return obj[_.random(obj.length - 1)];
+    }
+    return _.shuffle(obj).slice(0, Math.max(0, n));
+  };
+
+  // Sort the object's values by a criterion produced by an iteratee.
+  _.sortBy = function(obj, iteratee, context) {
+    iteratee = cb(iteratee, context);
+    return _.pluck(_.map(obj, function(value, index, list) {
+      return {
+        value: value,
+        index: index,
+        criteria: iteratee(value, index, list)
+      };
+    }).sort(function(left, right) {
+      var a = left.criteria;
+      var b = right.criteria;
+      if (a !== b) {
+        if (a > b || a === void 0) return 1;
+        if (a < b || b === void 0) return -1;
+      }
+      return left.index - right.index;
+    }), 'value');
+  };
+
+  // An internal function used for aggregate "group by" operations.
+  var group = function(behavior) {
+    return function(obj, iteratee, context) {
+      var result = {};
+      iteratee = cb(iteratee, context);
+      _.each(obj, function(value, index) {
+        var key = iteratee(value, index, obj);
+        behavior(result, value, key);
+      });
+      return result;
+    };
+  };
+
+  // Groups the object's values by a criterion. Pass either a string attribute
+  // to group by, or a function that returns the criterion.
+  _.groupBy = group(function(result, value, key) {
+    if (_.has(result, key)) result[key].push(value); else result[key] = [value];
+  });
+
+  // Indexes the object's values by a criterion, similar to `groupBy`, but for
+  // when you know that your index values will be unique.
+  _.indexBy = group(function(result, value, key) {
+    result[key] = value;
+  });
+
+  // Counts instances of an object that group by a certain criterion. Pass
+  // either a string attribute to count by, or a function that returns the
+  // criterion.
+  _.countBy = group(function(result, value, key) {
+    if (_.has(result, key)) result[key]++; else result[key] = 1;
+  });
+
+  // Safely create a real, live array from anything iterable.
+  _.toArray = function(obj) {
+    if (!obj) return [];
+    if (_.isArray(obj)) return slice.call(obj);
+    if (isArrayLike(obj)) return _.map(obj, _.identity);
+    return _.values(obj);
+  };
+
+  // Return the number of elements in an object.
+  _.size = function(obj) {
+    if (obj == null) return 0;
+    return isArrayLike(obj) ? obj.length : _.keys(obj).length;
+  };
+
+  // Split a collection into two arrays: one whose elements all satisfy the given
+  // predicate, and one whose elements all do not satisfy the predicate.
+  _.partition = function(obj, predicate, context) {
+    predicate = cb(predicate, context);
+    var pass = [], fail = [];
+    _.each(obj, function(value, key, obj) {
+      (predicate(value, key, obj) ? pass : fail).push(value);
+    });
+    return [pass, fail];
+  };
+
+  // Array Functions
+  // ---------------
+
+  // Get the first element of an array. Passing **n** will return the first N
+  // values in the array. Aliased as `head` and `take`. The **guard** check
+  // allows it to work with `_.map`.
+  _.first = _.head = _.take = function(array, n, guard) {
+    if (array == null) return void 0;
+    if (n == null || guard) return array[0];
+    return _.initial(array, array.length - n);
+  };
+
+  // Returns everything but the last entry of the array. Especially useful on
+  // the arguments object. Passing **n** will return all the values in
+  // the array, excluding the last N.
+  _.initial = function(array, n, guard) {
+    return slice.call(array, 0, Math.max(0, array.length - (n == null || guard ? 1 : n)));
+  };
+
+  // Get the last element of an array. Passing **n** will return the last N
+  // values in the array.
+  _.last = function(array, n, guard) {
+    if (array == null) return void 0;
+    if (n == null || guard) return array[array.length - 1];
+    return _.rest(array, Math.max(0, array.length - n));
+  };
+
+  // Returns everything but the first entry of the array. Aliased as `tail` and `drop`.
+  // Especially useful on the arguments object. Passing an **n** will return
+  // the rest N values in the array.
+  _.rest = _.tail = _.drop = function(array, n, guard) {
+    return slice.call(array, n == null || guard ? 1 : n);
+  };
+
+  // Trim out all falsy values from an array.
+  _.compact = function(array) {
+    return _.filter(array, _.identity);
+  };
+
+  // Internal implementation of a recursive `flatten` function.
+  var flatten = function(input, shallow, strict, startIndex) {
+    var output = [], idx = 0;
+    for (var i = startIndex || 0, length = getLength(input); i < length; i++) {
+      var value = input[i];
+      if (isArrayLike(value) && (_.isArray(value) || _.isArguments(value))) {
+        //flatten current level of array or arguments object
+        if (!shallow) value = flatten(value, shallow, strict);
+        var j = 0, len = value.length;
+        output.length += len;
+        while (j < len) {
+          output[idx++] = value[j++];
+        }
+      } else if (!strict) {
+        output[idx++] = value;
+      }
+    }
+    return output;
+  };
+
+  // Flatten out an array, either recursively (by default), or just one level.
+  _.flatten = function(array, shallow) {
+    return flatten(array, shallow, false);
+  };
+
+  // Return a version of the array that does not contain the specified value(s).
+  _.without = function(array) {
+    return _.difference(array, slice.call(arguments, 1));
+  };
+
+  // Produce a duplicate-free version of the array. If the array has already
+  // been sorted, you have the option of using a faster algorithm.
+  // Aliased as `unique`.
+  _.uniq = _.unique = function(array, isSorted, iteratee, context) {
+    if (!_.isBoolean(isSorted)) {
+      context = iteratee;
+      iteratee = isSorted;
+      isSorted = false;
+    }
+    if (iteratee != null) iteratee = cb(iteratee, context);
+    var result = [];
+    var seen = [];
+    for (var i = 0, length = getLength(array); i < length; i++) {
+      var value = array[i],
+          computed = iteratee ? iteratee(value, i, array) : value;
+      if (isSorted) {
+        if (!i || seen !== computed) result.push(value);
+        seen = computed;
+      } else if (iteratee) {
+        if (!_.contains(seen, computed)) {
+          seen.push(computed);
+          result.push(value);
+        }
+      } else if (!_.contains(result, value)) {
+        result.push(value);
+      }
+    }
+    return result;
+  };
+
+  // Produce an array that contains the union: each distinct element from all of
+  // the passed-in arrays.
+  _.union = function() {
+    return _.uniq(flatten(arguments, true, true));
+  };
+
+  // Produce an array that contains every item shared between all the
+  // passed-in arrays.
+  _.intersection = function(array) {
+    var result = [];
+    var argsLength = arguments.length;
+    for (var i = 0, length = getLength(array); i < length; i++) {
+      var item = array[i];
+      if (_.contains(result, item)) continue;
+      for (var j = 1; j < argsLength; j++) {
+        if (!_.contains(arguments[j], item)) break;
+      }
+      if (j === argsLength) result.push(item);
+    }
+    return result;
+  };
+
+  // Take the difference between one array and a number of other arrays.
+  // Only the elements present in just the first array will remain.
+  _.difference = function(array) {
+    var rest = flatten(arguments, true, true, 1);
+    return _.filter(array, function(value){
+      return !_.contains(rest, value);
+    });
+  };
+
+  // Zip together multiple lists into a single array -- elements that share
+  // an index go together.
+  _.zip = function() {
+    return _.unzip(arguments);
+  };
+
+  // Complement of _.zip. Unzip accepts an array of arrays and groups
+  // each array's elements on shared indices
+  _.unzip = function(array) {
+    var length = array && _.max(array, getLength).length || 0;
+    var result = Array(length);
+
+    for (var index = 0; index < length; index++) {
+      result[index] = _.pluck(array, index);
+    }
+    return result;
+  };
+
+  // Converts lists into objects. Pass either a single array of `[key, value]`
+  // pairs, or two parallel arrays of the same length -- one of keys, and one of
+  // the corresponding values.
+  _.object = function(list, values) {
+    var result = {};
+    for (var i = 0, length = getLength(list); i < length; i++) {
+      if (values) {
+        result[list[i]] = values[i];
+      } else {
+        result[list[i][0]] = list[i][1];
+      }
+    }
+    return result;
+  };
+
+  // Generator function to create the findIndex and findLastIndex functions
+  function createPredicateIndexFinder(dir) {
+    return function(array, predicate, context) {
+      predicate = cb(predicate, context);
+      var length = getLength(array);
+      var index = dir > 0 ? 0 : length - 1;
+      for (; index >= 0 && index < length; index += dir) {
+        if (predicate(array[index], index, array)) return index;
+      }
+      return -1;
+    };
+  }
+
+  // Returns the first index on an array-like that passes a predicate test
+  _.findIndex = createPredicateIndexFinder(1);
+  _.findLastIndex = createPredicateIndexFinder(-1);
+
+  // Use a comparator function to figure out the smallest index at which
+  // an object should be inserted so as to maintain order. Uses binary search.
+  _.sortedIndex = function(array, obj, iteratee, context) {
+    iteratee = cb(iteratee, context, 1);
+    var value = iteratee(obj);
+    var low = 0, high = getLength(array);
+    while (low < high) {
+      var mid = Math.floor((low + high) / 2);
+      if (iteratee(array[mid]) < value) low = mid + 1; else high = mid;
+    }
+    return low;
+  };
+
+  // Generator function to create the indexOf and lastIndexOf functions
+  function createIndexFinder(dir, predicateFind, sortedIndex) {
+    return function(array, item, idx) {
+      var i = 0, length = getLength(array);
+      if (typeof idx == 'number') {
+        if (dir > 0) {
+            i = idx >= 0 ? idx : Math.max(idx + length, i);
+        } else {
+            length = idx >= 0 ? Math.min(idx + 1, length) : idx + length + 1;
+        }
+      } else if (sortedIndex && idx && length) {
+        idx = sortedIndex(array, item);
+        return array[idx] === item ? idx : -1;
+      }
+      if (item !== item) {
+        idx = predicateFind(slice.call(array, i, length), _.isNaN);
+        return idx >= 0 ? idx + i : -1;
+      }
+      for (idx = dir > 0 ? i : length - 1; idx >= 0 && idx < length; idx += dir) {
+        if (array[idx] === item) return idx;
+      }
+      return -1;
+    };
+  }
+
+  // Return the position of the first occurrence of an item in an array,
+  // or -1 if the item is not included in the array.
+  // If the array is large and already in sort order, pass `true`
+  // for **isSorted** to use binary search.
+  _.indexOf = createIndexFinder(1, _.findIndex, _.sortedIndex);
+  _.lastIndexOf = createIndexFinder(-1, _.findLastIndex);
+
+  // Generate an integer Array containing an arithmetic progression. A port of
+  // the native Python `range()` function. See
+  // [the Python documentation](http://docs.python.org/library/functions.html#range).
+  _.range = function(start, stop, step) {
+    if (stop == null) {
+      stop = start || 0;
+      start = 0;
+    }
+    step = step || 1;
+
+    var length = Math.max(Math.ceil((stop - start) / step), 0);
+    var range = Array(length);
+
+    for (var idx = 0; idx < length; idx++, start += step) {
+      range[idx] = start;
+    }
+
+    return range;
+  };
+
+  // Function (ahem) Functions
+  // ------------------
+
+  // Determines whether to execute a function as a constructor
+  // or a normal function with the provided arguments
+  var executeBound = function(sourceFunc, boundFunc, context, callingContext, args) {
+    if (!(callingContext instanceof boundFunc)) return sourceFunc.apply(context, args);
+    var self = baseCreate(sourceFunc.prototype);
+    var result = sourceFunc.apply(self, args);
+    if (_.isObject(result)) return result;
+    return self;
+  };
+
+  // Create a function bound to a given object (assigning `this`, and arguments,
+  // optionally). Delegates to **ECMAScript 5**'s native `Function.bind` if
+  // available.
+  _.bind = function(func, context) {
+    if (nativeBind && func.bind === nativeBind) return nativeBind.apply(func, slice.call(arguments, 1));
+    if (!_.isFunction(func)) throw new TypeError('Bind must be called on a function');
+    var args = slice.call(arguments, 2);
+    var bound = function() {
+      return executeBound(func, bound, context, this, args.concat(slice.call(arguments)));
+    };
+    return bound;
+  };
+
+  // Partially apply a function by creating a version that has had some of its
+  // arguments pre-filled, without changing its dynamic `this` context. _ acts
+  // as a placeholder, allowing any combination of arguments to be pre-filled.
+  _.partial = function(func) {
+    var boundArgs = slice.call(arguments, 1);
+    var bound = function() {
+      var position = 0, length = boundArgs.length;
+      var args = Array(length);
+      for (var i = 0; i < length; i++) {
+        args[i] = boundArgs[i] === _ ? arguments[position++] : boundArgs[i];
+      }
+      while (position < arguments.length) args.push(arguments[position++]);
+      return executeBound(func, bound, this, this, args);
+    };
+    return bound;
+  };
+
+  // Bind a number of an object's methods to that object. Remaining arguments
+  // are the method names to be bound. Useful for ensuring that all callbacks
+  // defined on an object belong to it.
+  _.bindAll = function(obj) {
+    var i, length = arguments.length, key;
+    if (length <= 1) throw new Error('bindAll must be passed function names');
+    for (i = 1; i < length; i++) {
+      key = arguments[i];
+      obj[key] = _.bind(obj[key], obj);
+    }
+    return obj;
+  };
+
+  // Memoize an expensive function by storing its results.
+  _.memoize = function(func, hasher) {
+    var memoize = function(key) {
+      var cache = memoize.cache;
+      var address = '' + (hasher ? hasher.apply(this, arguments) : key);
+      if (!_.has(cache, address)) cache[address] = func.apply(this, arguments);
+      return cache[address];
+    };
+    memoize.cache = {};
+    return memoize;
+  };
+
+  // Delays a function for the given number of milliseconds, and then calls
+  // it with the arguments supplied.
+  _.delay = function(func, wait) {
+    var args = slice.call(arguments, 2);
+    return setTimeout(function(){
+      return func.apply(null, args);
+    }, wait);
+  };
+
+  // Defers a function, scheduling it to run after the current call stack has
+  // cleared.
+  _.defer = _.partial(_.delay, _, 1);
+
+  // Returns a function, that, when invoked, will only be triggered at most once
+  // during a given window of time. Normally, the throttled function will run
+  // as much as it can, without ever going more than once per `wait` duration;
+  // but if you'd like to disable the execution on the leading edge, pass
+  // `{leading: false}`. To disable execution on the trailing edge, ditto.
+  _.throttle = function(func, wait, options) {
+    var context, args, result;
+    var timeout = null;
+    var previous = 0;
+    if (!options) options = {};
+    var later = function() {
+      previous = options.leading === false ? 0 : _.now();
+      timeout = null;
+      result = func.apply(context, args);
+      if (!timeout) context = args = null;
+    };
+    return function() {
+      var now = _.now();
+      if (!previous && options.leading === false) previous = now;
+      var remaining = wait - (now - previous);
+      context = this;
+      args = arguments;
+      if (remaining <= 0 || remaining > wait) {
+        if (timeout) {
+          clearTimeout(timeout);
+          timeout = null;
+        }
+        previous = now;
+        result = func.apply(context, args);
+        if (!timeout) context = args = null;
+      } else if (!timeout && options.trailing !== false) {
+        timeout = setTimeout(later, remaining);
+      }
+      return result;
+    };
+  };
+
+  // Returns a function, that, as long as it continues to be invoked, will not
+  // be triggered. The function will be called after it stops being called for
+  // N milliseconds. If `immediate` is passed, trigger the function on the
+  // leading edge, instead of the trailing.
+  _.debounce = function(func, wait, immediate) {
+    var timeout, args, context, timestamp, result;
+
+    var later = function() {
+      var last = _.now() - timestamp;
+
+      if (last < wait && last >= 0) {
+        timeout = setTimeout(later, wait - last);
+      } else {
+        timeout = null;
+        if (!immediate) {
+          result = func.apply(context, args);
+          if (!timeout) context = args = null;
+        }
+      }
+    };
+
+    return function() {
+      context = this;
+      args = arguments;
+      timestamp = _.now();
+      var callNow = immediate && !timeout;
+      if (!timeout) timeout = setTimeout(later, wait);
+      if (callNow) {
+        result = func.apply(context, args);
+        context = args = null;
+      }
+
+      return result;
+    };
+  };
+
+  // Returns the first function passed as an argument to the second,
+  // allowing you to adjust arguments, run code before and after, and
+  // conditionally execute the original function.
+  _.wrap = function(func, wrapper) {
+    return _.partial(wrapper, func);
+  };
+
+  // Returns a negated version of the passed-in predicate.
+  _.negate = function(predicate) {
+    return function() {
+      return !predicate.apply(this, arguments);
+    };
+  };
+
+  // Returns a function that is the composition of a list of functions, each
+  // consuming the return value of the function that follows.
+  _.compose = function() {
+    var args = arguments;
+    var start = args.length - 1;
+    return function() {
+      var i = start;
+      var result = args[start].apply(this, arguments);
+      while (i--) result = args[i].call(this, result);
+      return result;
+    };
+  };
+
+  // Returns a function that will only be executed on and after the Nth call.
+  _.after = function(times, func) {
+    return function() {
+      if (--times < 1) {
+        return func.apply(this, arguments);
+      }
+    };
+  };
+
+  // Returns a function that will only be executed up to (but not including) the Nth call.
+  _.before = function(times, func) {
+    var memo;
+    return function() {
+      if (--times > 0) {
+        memo = func.apply(this, arguments);
+      }
+      if (times <= 1) func = null;
+      return memo;
+    };
+  };
+
+  // Returns a function that will be executed at most one time, no matter how
+  // often you call it. Useful for lazy initialization.
+  _.once = _.partial(_.before, 2);
+
+  // Object Functions
+  // ----------------
+
+  // Keys in IE < 9 that won't be iterated by `for key in ...` and thus missed.
+  var hasEnumBug = !{toString: null}.propertyIsEnumerable('toString');
+  var nonEnumerableProps = ['valueOf', 'isPrototypeOf', 'toString',
+                      'propertyIsEnumerable', 'hasOwnProperty', 'toLocaleString'];
+
+  function collectNonEnumProps(obj, keys) {
+    var nonEnumIdx = nonEnumerableProps.length;
+    var constructor = obj.constructor;
+    var proto = (_.isFunction(constructor) && constructor.prototype) || ObjProto;
+
+    // Constructor is a special case.
+    var prop = 'constructor';
+    if (_.has(obj, prop) && !_.contains(keys, prop)) keys.push(prop);
+
+    while (nonEnumIdx--) {
+      prop = nonEnumerableProps[nonEnumIdx];
+      if (prop in obj && obj[prop] !== proto[prop] && !_.contains(keys, prop)) {
+        keys.push(prop);
+      }
+    }
+  }
+
+  // Retrieve the names of an object's own properties.
+  // Delegates to **ECMAScript 5**'s native `Object.keys`
+  _.keys = function(obj) {
+    if (!_.isObject(obj)) return [];
+    if (nativeKeys) return nativeKeys(obj);
+    var keys = [];
+    for (var key in obj) if (_.has(obj, key)) keys.push(key);
+    // Ahem, IE < 9.
+    if (hasEnumBug) collectNonEnumProps(obj, keys);
+    return keys;
+  };
+
+  // Retrieve all the property names of an object.
+  _.allKeys = function(obj) {
+    if (!_.isObject(obj)) return [];
+    var keys = [];
+    for (var key in obj) keys.push(key);
+    // Ahem, IE < 9.
+    if (hasEnumBug) collectNonEnumProps(obj, keys);
+    return keys;
+  };
+
+  // Retrieve the values of an object's properties.
+  _.values = function(obj) {
+    var keys = _.keys(obj);
+    var length = keys.length;
+    var values = Array(length);
+    for (var i = 0; i < length; i++) {
+      values[i] = obj[keys[i]];
+    }
+    return values;
+  };
+
+  // Returns the results of applying the iteratee to each element of the object
+  // In contrast to _.map it returns an object
+  _.mapObject = function(obj, iteratee, context) {
+    iteratee = cb(iteratee, context);
+    var keys =  _.keys(obj),
+          length = keys.length,
+          results = {},
+          currentKey;
+      for (var index = 0; index < length; index++) {
+        currentKey = keys[index];
+        results[currentKey] = iteratee(obj[currentKey], currentKey, obj);
+      }
+      return results;
+  };
+
+  // Convert an object into a list of `[key, value]` pairs.
+  _.pairs = function(obj) {
+    var keys = _.keys(obj);
+    var length = keys.length;
+    var pairs = Array(length);
+    for (var i = 0; i < length; i++) {
+      pairs[i] = [keys[i], obj[keys[i]]];
+    }
+    return pairs;
+  };
+
+  // Invert the keys and values of an object. The values must be serializable.
+  _.invert = function(obj) {
+    var result = {};
+    var keys = _.keys(obj);
+    for (var i = 0, length = keys.length; i < length; i++) {
+      result[obj[keys[i]]] = keys[i];
+    }
+    return result;
+  };
+
+  // Return a sorted list of the function names available on the object.
+  // Aliased as `methods`
+  _.functions = _.methods = function(obj) {
+    var names = [];
+    for (var key in obj) {
+      if (_.isFunction(obj[key])) names.push(key);
+    }
+    return names.sort();
+  };
+
+  // Extend a given object with all the properties in passed-in object(s).
+  _.extend = createAssigner(_.allKeys);
+
+  // Assigns a given object with all the own properties in the passed-in object(s)
+  // (https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object/assign)
+  _.extendOwn = _.assign = createAssigner(_.keys);
+
+  // Returns the first key on an object that passes a predicate test
+  _.findKey = function(obj, predicate, context) {
+    predicate = cb(predicate, context);
+    var keys = _.keys(obj), key;
+    for (var i = 0, length = keys.length; i < length; i++) {
+      key = keys[i];
+      if (predicate(obj[key], key, obj)) return key;
+    }
+  };
+
+  // Return a copy of the object only containing the whitelisted properties.
+  _.pick = function(object, oiteratee, context) {
+    var result = {}, obj = object, iteratee, keys;
+    if (obj == null) return result;
+    if (_.isFunction(oiteratee)) {
+      keys = _.allKeys(obj);
+      iteratee = optimizeCb(oiteratee, context);
+    } else {
+      keys = flatten(arguments, false, false, 1);
+      iteratee = function(value, key, obj) { return key in obj; };
+      obj = Object(obj);
+    }
+    for (var i = 0, length = keys.length; i < length; i++) {
+      var key = keys[i];
+      var value = obj[key];
+      if (iteratee(value, key, obj)) result[key] = value;
+    }
+    return result;
+  };
+
+   // Return a copy of the object without the blacklisted properties.
+  _.omit = function(obj, iteratee, context) {
+    if (_.isFunction(iteratee)) {
+      iteratee = _.negate(iteratee);
+    } else {
+      var keys = _.map(flatten(arguments, false, false, 1), String);
+      iteratee = function(value, key) {
+        return !_.contains(keys, key);
+      };
+    }
+    return _.pick(obj, iteratee, context);
+  };
+
+  // Fill in a given object with default properties.
+  _.defaults = createAssigner(_.allKeys, true);
+
+  // Creates an object that inherits from the given prototype object.
+  // If additional properties are provided then they will be added to the
+  // created object.
+  _.create = function(prototype, props) {
+    var result = baseCreate(prototype);
+    if (props) _.extendOwn(result, props);
+    return result;
+  };
+
+  // Create a (shallow-cloned) duplicate of an object.
+  _.clone = function(obj) {
+    if (!_.isObject(obj)) return obj;
+    return _.isArray(obj) ? obj.slice() : _.extend({}, obj);
+  };
+
+  // Invokes interceptor with the obj, and then returns obj.
+  // The primary purpose of this method is to "tap into" a method chain, in
+  // order to perform operations on intermediate results within the chain.
+  _.tap = function(obj, interceptor) {
+    interceptor(obj);
+    return obj;
+  };
+
+  // Returns whether an object has a given set of `key:value` pairs.
+  _.isMatch = function(object, attrs) {
+    var keys = _.keys(attrs), length = keys.length;
+    if (object == null) return !length;
+    var obj = Object(object);
+    for (var i = 0; i < length; i++) {
+      var key = keys[i];
+      if (attrs[key] !== obj[key] || !(key in obj)) return false;
+    }
+    return true;
+  };
+
+
+  // Internal recursive comparison function for `isEqual`.
+  var eq = function(a, b, aStack, bStack) {
+    // Identical objects are equal. `0 === -0`, but they aren't identical.
+    // See the [Harmony `egal` proposal](http://wiki.ecmascript.org/doku.php?id=harmony:egal).
+    if (a === b) return a !== 0 || 1 / a === 1 / b;
+    // A strict comparison is necessary because `null == undefined`.
+    if (a == null || b == null) return a === b;
+    // Unwrap any wrapped objects.
+    if (a instanceof _) a = a._wrapped;
+    if (b instanceof _) b = b._wrapped;
+    // Compare `[[Class]]` names.
+    var className = toString.call(a);
+    if (className !== toString.call(b)) return false;
+    switch (className) {
+      // Strings, numbers, regular expressions, dates, and booleans are compared by value.
+      case '[object RegExp]':
+      // RegExps are coerced to strings for comparison (Note: '' + /a/i === '/a/i')
+      case '[object String]':
+        // Primitives and their corresponding object wrappers are equivalent; thus, `"5"` is
+        // equivalent to `new String("5")`.
+        return '' + a === '' + b;
+      case '[object Number]':
+        // `NaN`s are equivalent, but non-reflexive.
+        // Object(NaN) is equivalent to NaN
+        if (+a !== +a) return +b !== +b;
+        // An `egal` comparison is performed for other numeric values.
+        return +a === 0 ? 1 / +a === 1 / b : +a === +b;
+      case '[object Date]':
+      case '[object Boolean]':
+        // Coerce dates and booleans to numeric primitive values. Dates are compared by their
+        // millisecond representations. Note that invalid dates with millisecond representations
+        // of `NaN` are not equivalent.
+        return +a === +b;
+    }
+
+    var areArrays = className === '[object Array]';
+    if (!areArrays) {
+      if (typeof a != 'object' || typeof b != 'object') return false;
+
+      // Objects with different constructors are not equivalent, but `Object`s or `Array`s
+      // from different frames are.
+      var aCtor = a.constructor, bCtor = b.constructor;
+      if (aCtor !== bCtor && !(_.isFunction(aCtor) && aCtor instanceof aCtor &&
+                               _.isFunction(bCtor) && bCtor instanceof bCtor)
+                          && ('constructor' in a && 'constructor' in b)) {
+        return false;
+      }
+    }
+    // Assume equality for cyclic structures. The algorithm for detecting cyclic
+    // structures is adapted from ES 5.1 section 15.12.3, abstract operation `JO`.
+
+    // Initializing stack of traversed objects.
+    // It's done here since we only need them for objects and arrays comparison.
+    aStack = aStack || [];
+    bStack = bStack || [];
+    var length = aStack.length;
+    while (length--) {
+      // Linear search. Performance is inversely proportional to the number of
+      // unique nested structures.
+      if (aStack[length] === a) return bStack[length] === b;
+    }
+
+    // Add the first object to the stack of traversed objects.
+    aStack.push(a);
+    bStack.push(b);
+
+    // Recursively compare objects and arrays.
+    if (areArrays) {
+      // Compare array lengths to determine if a deep comparison is necessary.
+      length = a.length;
+      if (length !== b.length) return false;
+      // Deep compare the contents, ignoring non-numeric properties.
+      while (length--) {
+        if (!eq(a[length], b[length], aStack, bStack)) return false;
+      }
+    } else {
+      // Deep compare objects.
+      var keys = _.keys(a), key;
+      length = keys.length;
+      // Ensure that both objects contain the same number of properties before comparing deep equality.
+      if (_.keys(b).length !== length) return false;
+      while (length--) {
+        // Deep compare each member
+        key = keys[length];
+        if (!(_.has(b, key) && eq(a[key], b[key], aStack, bStack))) return false;
+      }
+    }
+    // Remove the first object from the stack of traversed objects.
+    aStack.pop();
+    bStack.pop();
+    return true;
+  };
+
+  // Perform a deep comparison to check if two objects are equal.
+  _.isEqual = function(a, b) {
+    return eq(a, b);
+  };
+
+  // Is a given array, string, or object empty?
+  // An "empty" object has no enumerable own-properties.
+  _.isEmpty = function(obj) {
+    if (obj == null) return true;
+    if (isArrayLike(obj) && (_.isArray(obj) || _.isString(obj) || _.isArguments(obj))) return obj.length === 0;
+    return _.keys(obj).length === 0;
+  };
+
+  // Is a given value a DOM element?
+  _.isElement = function(obj) {
+    return !!(obj && obj.nodeType === 1);
+  };
+
+  // Is a given value an array?
+  // Delegates to ECMA5's native Array.isArray
+  _.isArray = nativeIsArray || function(obj) {
+    return toString.call(obj) === '[object Array]';
+  };
+
+  // Is a given variable an object?
+  _.isObject = function(obj) {
+    var type = typeof obj;
+    return type === 'function' || type === 'object' && !!obj;
+  };
+
+  // Add some isType methods: isArguments, isFunction, isString, isNumber, isDate, isRegExp, isError.
+  _.each(['Arguments', 'Function', 'String', 'Number', 'Date', 'RegExp', 'Error'], function(name) {
+    _['is' + name] = function(obj) {
+      return toString.call(obj) === '[object ' + name + ']';
+    };
+  });
+
+  // Define a fallback version of the method in browsers (ahem, IE < 9), where
+  // there isn't any inspectable "Arguments" type.
+  if (!_.isArguments(arguments)) {
+    _.isArguments = function(obj) {
+      return _.has(obj, 'callee');
+    };
+  }
+
+  // Optimize `isFunction` if appropriate. Work around some typeof bugs in old v8,
+  // IE 11 (#1621), and in Safari 8 (#1929).
+  if (typeof /./ != 'function' && typeof Int8Array != 'object') {
+    _.isFunction = function(obj) {
+      return typeof obj == 'function' || false;
+    };
+  }
+
+  // Is a given object a finite number?
+  _.isFinite = function(obj) {
+    return isFinite(obj) && !isNaN(parseFloat(obj));
+  };
+
+  // Is the given value `NaN`? (NaN is the only number which does not equal itself).
+  _.isNaN = function(obj) {
+    return _.isNumber(obj) && obj !== +obj;
+  };
+
+  // Is a given value a boolean?
+  _.isBoolean = function(obj) {
+    return obj === true || obj === false || toString.call(obj) === '[object Boolean]';
+  };
+
+  // Is a given value equal to null?
+  _.isNull = function(obj) {
+    return obj === null;
+  };
+
+  // Is a given variable undefined?
+  _.isUndefined = function(obj) {
+    return obj === void 0;
+  };
+
+  // Shortcut function for checking if an object has a given property directly
+  // on itself (in other words, not on a prototype).
+  _.has = function(obj, key) {
+    return obj != null && hasOwnProperty.call(obj, key);
+  };
+
+  // Utility Functions
+  // -----------------
+
+  // Run Underscore.js in *noConflict* mode, returning the `_` variable to its
+  // previous owner. Returns a reference to the Underscore object.
+  _.noConflict = function() {
+    root._ = previousUnderscore;
+    return this;
+  };
+
+  // Keep the identity function around for default iteratees.
+  _.identity = function(value) {
+    return value;
+  };
+
+  // Predicate-generating functions. Often useful outside of Underscore.
+  _.constant = function(value) {
+    return function() {
+      return value;
+    };
+  };
+
+  _.noop = function(){};
+
+  _.property = property;
+
+  // Generates a function for a given object that returns a given property.
+  _.propertyOf = function(obj) {
+    return obj == null ? function(){} : function(key) {
+      return obj[key];
+    };
+  };
+
+  // Returns a predicate for checking whether an object has a given set of
+  // `key:value` pairs.
+  _.matcher = _.matches = function(attrs) {
+    attrs = _.extendOwn({}, attrs);
+    return function(obj) {
+      return _.isMatch(obj, attrs);
+    };
+  };
+
+  // Run a function **n** times.
+  _.times = function(n, iteratee, context) {
+    var accum = Array(Math.max(0, n));
+    iteratee = optimizeCb(iteratee, context, 1);
+    for (var i = 0; i < n; i++) accum[i] = iteratee(i);
+    return accum;
+  };
+
+  // Return a random integer between min and max (inclusive).
+  _.random = function(min, max) {
+    if (max == null) {
+      max = min;
+      min = 0;
+    }
+    return min + Math.floor(Math.random() * (max - min + 1));
+  };
+
+  // A (possibly faster) way to get the current timestamp as an integer.
+  _.now = Date.now || function() {
+    return new Date().getTime();
+  };
+
+   // List of HTML entities for escaping.
+  var escapeMap = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#x27;',
+    '`': '&#x60;'
+  };
+  var unescapeMap = _.invert(escapeMap);
+
+  // Functions for escaping and unescaping strings to/from HTML interpolation.
+  var createEscaper = function(map) {
+    var escaper = function(match) {
+      return map[match];
+    };
+    // Regexes for identifying a key that needs to be escaped
+    var source = '(?:' + _.keys(map).join('|') + ')';
+    var testRegexp = RegExp(source);
+    var replaceRegexp = RegExp(source, 'g');
+    return function(string) {
+      string = string == null ? '' : '' + string;
+      return testRegexp.test(string) ? string.replace(replaceRegexp, escaper) : string;
+    };
+  };
+  _.escape = createEscaper(escapeMap);
+  _.unescape = createEscaper(unescapeMap);
+
+  // If the value of the named `property` is a function then invoke it with the
+  // `object` as context; otherwise, return it.
+  _.result = function(object, property, fallback) {
+    var value = object == null ? void 0 : object[property];
+    if (value === void 0) {
+      value = fallback;
+    }
+    return _.isFunction(value) ? value.call(object) : value;
+  };
+
+  // Generate a unique integer id (unique within the entire client session).
+  // Useful for temporary DOM ids.
+  var idCounter = 0;
+  _.uniqueId = function(prefix) {
+    var id = ++idCounter + '';
+    return prefix ? prefix + id : id;
+  };
+
+  // By default, Underscore uses ERB-style template delimiters, change the
+  // following template settings to use alternative delimiters.
+  _.templateSettings = {
+    evaluate    : /<%([\s\S]+?)%>/g,
+    interpolate : /<%=([\s\S]+?)%>/g,
+    escape      : /<%-([\s\S]+?)%>/g
+  };
+
+  // When customizing `templateSettings`, if you don't want to define an
+  // interpolation, evaluation or escaping regex, we need one that is
+  // guaranteed not to match.
+  var noMatch = /(.)^/;
+
+  // Certain characters need to be escaped so that they can be put into a
+  // string literal.
+  var escapes = {
+    "'":      "'",
+    '\\':     '\\',
+    '\r':     'r',
+    '\n':     'n',
+    '\u2028': 'u2028',
+    '\u2029': 'u2029'
+  };
+
+  var escaper = /\\|'|\r|\n|\u2028|\u2029/g;
+
+  var escapeChar = function(match) {
+    return '\\' + escapes[match];
+  };
+
+  // JavaScript micro-templating, similar to John Resig's implementation.
+  // Underscore templating handles arbitrary delimiters, preserves whitespace,
+  // and correctly escapes quotes within interpolated code.
+  // NB: `oldSettings` only exists for backwards compatibility.
+  _.template = function(text, settings, oldSettings) {
+    if (!settings && oldSettings) settings = oldSettings;
+    settings = _.defaults({}, settings, _.templateSettings);
+
+    // Combine delimiters into one regular expression via alternation.
+    var matcher = RegExp([
+      (settings.escape || noMatch).source,
+      (settings.interpolate || noMatch).source,
+      (settings.evaluate || noMatch).source
+    ].join('|') + '|$', 'g');
+
+    // Compile the template source, escaping string literals appropriately.
+    var index = 0;
+    var source = "__p+='";
+    text.replace(matcher, function(match, escape, interpolate, evaluate, offset) {
+      source += text.slice(index, offset).replace(escaper, escapeChar);
+      index = offset + match.length;
+
+      if (escape) {
+        source += "'+\n((__t=(" + escape + "))==null?'':_.escape(__t))+\n'";
+      } else if (interpolate) {
+        source += "'+\n((__t=(" + interpolate + "))==null?'':__t)+\n'";
+      } else if (evaluate) {
+        source += "';\n" + evaluate + "\n__p+='";
+      }
+
+      // Adobe VMs need the match returned to produce the correct offest.
+      return match;
+    });
+    source += "';\n";
+
+    // If a variable is not specified, place data values in local scope.
+    if (!settings.variable) source = 'with(obj||{}){\n' + source + '}\n';
+
+    source = "var __t,__p='',__j=Array.prototype.join," +
+      "print=function(){__p+=__j.call(arguments,'');};\n" +
+      source + 'return __p;\n';
+
+    try {
+      var render = new Function(settings.variable || 'obj', '_', source);
+    } catch (e) {
+      e.source = source;
+      throw e;
+    }
+
+    var template = function(data) {
+      return render.call(this, data, _);
+    };
+
+    // Provide the compiled source as a convenience for precompilation.
+    var argument = settings.variable || 'obj';
+    template.source = 'function(' + argument + '){\n' + source + '}';
+
+    return template;
+  };
+
+  // Add a "chain" function. Start chaining a wrapped Underscore object.
+  _.chain = function(obj) {
+    var instance = _(obj);
+    instance._chain = true;
+    return instance;
+  };
+
+  // OOP
+  // ---------------
+  // If Underscore is called as a function, it returns a wrapped object that
+  // can be used OO-style. This wrapper holds altered versions of all the
+  // underscore functions. Wrapped objects may be chained.
+
+  // Helper function to continue chaining intermediate results.
+  var result = function(instance, obj) {
+    return instance._chain ? _(obj).chain() : obj;
+  };
+
+  // Add your own custom functions to the Underscore object.
+  _.mixin = function(obj) {
+    _.each(_.functions(obj), function(name) {
+      var func = _[name] = obj[name];
+      _.prototype[name] = function() {
+        var args = [this._wrapped];
+        push.apply(args, arguments);
+        return result(this, func.apply(_, args));
+      };
+    });
+  };
+
+  // Add all of the Underscore functions to the wrapper object.
+  _.mixin(_);
+
+  // Add all mutator Array functions to the wrapper.
+  _.each(['pop', 'push', 'reverse', 'shift', 'sort', 'splice', 'unshift'], function(name) {
+    var method = ArrayProto[name];
+    _.prototype[name] = function() {
+      var obj = this._wrapped;
+      method.apply(obj, arguments);
+      if ((name === 'shift' || name === 'splice') && obj.length === 0) delete obj[0];
+      return result(this, obj);
+    };
+  });
+
+  // Add all accessor Array functions to the wrapper.
+  _.each(['concat', 'join', 'slice'], function(name) {
+    var method = ArrayProto[name];
+    _.prototype[name] = function() {
+      return result(this, method.apply(this._wrapped, arguments));
+    };
+  });
+
+  // Extracts the result from a wrapped and chained object.
+  _.prototype.value = function() {
+    return this._wrapped;
+  };
+
+  // Provide unwrapping proxy for some methods used in engine operations
+  // such as arithmetic and JSON stringification.
+  _.prototype.valueOf = _.prototype.toJSON = _.prototype.value;
+
+  _.prototype.toString = function() {
+    return '' + this._wrapped;
+  };
+
+  // AMD registration happens at the end for compatibility with AMD loaders
+  // that may not enforce next-turn semantics on modules. Even though general
+  // practice for AMD registration is to be anonymous, underscore registers
+  // as a named module because, like jQuery, it is a base library that is
+  // popular enough to be bundled in a third party lib, but not be part of
+  // an AMD load request. Those cases could generate an error when an
+  // anonymous define() is called outside of a loader request.
+  if (typeof define === 'function' && define.amd) {
+    define('underscore', [], function() {
+      return _;
+    });
+  }
+}.call(this));
+
+},{}],221:[function(require,module,exports){
 (function (global){
 
 var rng;
@@ -29326,7 +33403,7 @@ module.exports = rng;
 
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],219:[function(require,module,exports){
+},{}],222:[function(require,module,exports){
 //     uuid.js
 //
 //     Copyright (c) 2010-2012 Robert Kieffer
@@ -29511,7 +33588,7 @@ uuid.unparse = unparse;
 
 module.exports = uuid;
 
-},{"./rng":218}],220:[function(require,module,exports){
+},{"./rng":221}],223:[function(require,module,exports){
 var http = require("http"),
     https = require('https'),
     querystring = require("querystring");
@@ -29559,7 +33636,7 @@ function createCORSRequest(method, url) {
 	return xhr;
 }
 
-},{"http":27,"https":7,"querystring":14}],221:[function(require,module,exports){
+},{"http":27,"https":7,"querystring":14}],224:[function(require,module,exports){
 var ModelServer = require('../common/core/model');
 
 function clooca() {
@@ -29593,7 +33670,7 @@ clooca.prototype.registerPlugin = function (pluginName, component, type) {
 
 module.exports = clooca;
 
-},{"../common/core/model":229}],222:[function(require,module,exports){
+},{"../common/core/model":232}],225:[function(require,module,exports){
 var React = require('react');
 
 var PluginItem = require('../plugin/item');
@@ -29611,20 +33688,19 @@ let CoreComponent = React.createClass({
   componentWillMount: function () {
     var setState = this.setState.bind(this);
     var modelInterface = clooca.getModelInterface();
-    var metamodelInterface = clooca.getMetaModelInterface();
-    modelInterface.on('update', function (model) {
-      console.log(model);
+    modelInterface.on('update', function (e) {
+      console.log(e);
       setState({
-        model: model
+        model: e.model
       });
     });
-    metamodelInterface.on('update', function (metamodel) {
-      setState({
-        metamodel: metamodel
-      });
+    modelInterface.loadMetaModel(require('../../../common/assets/classdiagram/metamodel.json')).then(function (content) {
+      return modelInterface.loadModel(require('../../../common/assets/classdiagram/model.json'));
+    }).then(function (content) {
+      console.log(content);
+    }).catch(function (err) {
+      console.error(err);
     });
-    metamodelInterface.load(require('../../../common/assets/classdiagram/metamodel.json'));
-    modelInterface.load(require('../../../common/assets/classdiagram/model.json'));
   },
 
   componentDidMount: function () {},
@@ -29649,10 +33725,13 @@ let CoreComponent = React.createClass({
       return React.createElement(PluginItem, { pluginName: pluginName, onClick: self.changePlugin });
     });
     var Component = clooca.getPluginComponent(this.state.plugin);
-    if (Component) {
-      content = React.createElement(Component, {
-        model: this.state.model,
-        metamodel: this.state.metamodel });
+    if (this.state.plugin) {
+      content = React.createElement('iframe', { src: "/plugins/" + this.state.plugin + "/html" });
+      /*
+      content = (<Component
+        model={this.state.model}
+        metamodel={this.state.metamodel}></Component>)
+        */
     }
 
     return React.createElement(
@@ -29674,7 +33753,7 @@ let CoreComponent = React.createClass({
 
 module.exports = CoreComponent;
 
-},{"../../../common/assets/classdiagram/metamodel.json":226,"../../../common/assets/classdiagram/model.json":227,"../plugin/item":223,"react":217}],223:[function(require,module,exports){
+},{"../../../common/assets/classdiagram/metamodel.json":229,"../../../common/assets/classdiagram/model.json":230,"../plugin/item":226,"react":219}],226:[function(require,module,exports){
 var React = require('react');
 
 let PluginItem = React.createClass({
@@ -29710,7 +33789,7 @@ let PluginItem = React.createClass({
 
 module.exports = PluginItem;
 
-},{"react":217}],224:[function(require,module,exports){
+},{"react":219}],227:[function(require,module,exports){
 var React = require('react');
 var ReactDOM = require('react-dom');
 
@@ -29728,7 +33807,7 @@ pluginLoader(function (err, pluginNames) {
 	ReactDOM.render(mainEl, document.getElementById('main'));
 });
 
-},{"./clooca":221,"./components/core":222,"./pluginLoader":225,"react":217,"react-dom":48}],225:[function(require,module,exports){
+},{"./clooca":224,"./components/core":225,"./pluginLoader":228,"react":219,"react-dom":50}],228:[function(require,module,exports){
 var ajax = require('./ajax');
 
 function loadScript(src, callback) {
@@ -29753,129 +33832,165 @@ function loadScript(src, callback) {
 
 module.exports = function (cb) {
     ajax.request("GET", '/plugins', {}, {}, function (pluginNames) {
-        pluginNames.forEach(function (name) {
-            loadScript('/plugins/' + name, function () {
-                console.log('loaded', name);
-            });
+        /*
+        pluginNames.forEach(function(name) {
+        loadScript('/plugins/' + name, function() {
+        console.log('loaded', name);
         });
+        });
+        */
         cb(null, pluginNames);
     }, function () {}, "json");
 };
 
-},{"./ajax":220}],226:[function(require,module,exports){
+},{"./ajax":223}],229:[function(require,module,exports){
 module.exports={
-	"id": "classdiagram",
-	"name": "Class Diagram",
-	"classes": {
-		"classdiagram.classdiagram": {
-			"id": "classdiagram.classdiagram",
-			"type": "metametamodel.class",
-			"properties": {
-				"name": "classdiagram",
-				"properties": {
-					"name": {
-						"name": "name",
-						"type": "string",
-						"lower": 1,
-						"upper": 1
-					}
-				}
-			},
-			"relations": {
-				"haspackages1": {
-					"id": "haspackages1"
-				}
-			}
-		},
-		"haspackages1": {
-			"id": "classdiagram.haspackages1",
-			"type": "metametamodel.association",
-			"properties": {
-				"name": "haspackages1",
-				"source": "classdiagram.classdiagram",
-				"target": "classdiagram.package",
-				"containment": true,
-				"lower": 0,
-				"upper": -1
-			}
-		},
-		"classdiagram.package": {
-			"id": "classdiagram.package",
-			"type": "metametamodel.class",
-			"properties": {
-				"name": "package",
-				"properties": {
-					"name": {
-						"name": "name",
-						"type": "string",
-						"lower": 1,
-						"upper": 1
-					}
-				}
-			},
-			"relations": {
-				"haspackages2": {
-					"id": "haspackages2"
-				}
-			}
-		},
-		"haspackages2": {
-			"id": "classdiagram.haspackages2",
-			"type": "metametamodel.association",
-			"properties": {
-				"name": "haspackages2",
-				"target": "classdiagram.package",
-				"containment": true,
-				"lower": 0,
-				"upper": -1
-			}
-		}
-	}
+  "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EPackage",
+  "name": "Class Diagram",
+  "nsURI": "http://clooca.com/classdiagram",
+  "nsPrefix": "classdiagram",
+  "eClassifiers": [
+    {
+      "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EClass",
+      "name": "Class Diagram",
+      "abstract": false,
+      "interface": false,
+      "eStructuralFeatures": [
+        {
+          "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EAttribute",
+          "name": "name",
+          "eType": {
+            "$ref": "http://www.eclipse.org/emf/2002/Ecore#//EString",
+            "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EDataType"
+          },
+          "ordered": true,
+          "unique": true,
+          "lowerBound": 0,
+          "upperBound": 1
+        },
+        {
+          "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EReference",
+          "name": "classes",
+          "eType": {
+            "$ref": "//Class",
+            "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EClass"
+          },
+          "ordered": true,
+          "unique": true,
+          "lowerBound": 0,
+          "upperBound": -1,
+          "containment": true
+        }
+      ]
+    },
+    {
+      "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EClass",
+      "name": "Class",
+      "abstract": false,
+      "interface": false,
+      "eStructuralFeatures": [
+        {
+          "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EAttribute",
+          "name": "name",
+          "eType": {
+            "$ref": "http://www.eclipse.org/emf/2002/Ecore#//EString",
+            "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EDataType"
+          },
+          "ordered": true,
+          "unique": true,
+          "lowerBound": 0,
+          "upperBound": 1
+        },
+        {
+          "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EReference",
+          "name": "associations",
+          "eType": {
+            "$ref": "//Association",
+            "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EClass"
+          },
+          "ordered": true,
+          "unique": true,
+          "lowerBound": 0,
+          "upperBound": -1,
+          "containment": true
+        }
+      ]
+    },
+    {
+      "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EClass",
+      "name": "Association",
+      "abstract": false,
+      "interface": false,
+      "eStructuralFeatures": [
+        {
+          "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EAttribute",
+          "name": "name",
+          "eType": {
+            "$ref": "http://www.eclipse.org/emf/2002/Ecore#//EString",
+            "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EDataType"
+          },
+          "ordered": true,
+          "unique": true,
+          "lowerBound": 0,
+          "upperBound": 1
+        },
+        {
+          "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EReference",
+          "name": "target",
+          "eType": {
+            "$ref": "//Class",
+            "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EClass"
+          },
+          "ordered": true,
+          "unique": true,
+          "lowerBound": 1,
+          "upperBound": 1,
+          "containment": false
+        }
+      ]
+    }
+  ]
 }
-
-},{}],227:[function(require,module,exports){
+},{}],230:[function(require,module,exports){
 module.exports={
-	"id": "bookstore",
-	"name": "Book Store",
-	"root": "bookstore.bookstorediagram",
-	"classes": {
-		"bookstore.bookstorediagram": {
-			"id": "bookstore.bookstorediagram",
-			"type": "classdiagram.classdiagram",
-			"properties": {
-				"name": "bookstorediagram"
-			},
-			"relations": {
-				"book": {
-					"id": "bookstore.book"
-				}
-			}
-		},
-		"bookstore.book": {
-			"id": "bookstore.book",
-			"type": "classdiagram.package",
-			"properties": {
-				"name": "book"
-			},
-			"relations": {
-				"order": {
-					"id": "bookstore.order"
-				}
-			}
-		},
-		"bookstore.order": {
-			"id": "bookstore.order",
-			"type": "classdiagram.package",
-			"properties": {
-				"name": "order"
-			},
-			"relations": {
-			}
-		}
-	}
+  "eClass": "classdiagram#//Class Diagram",
+  "name": "Book",
+  "classes": [
+    {
+      "eClass": "classdiagram#//Class",
+      "name": "Author",
+      "associations": [
+        {
+          "eClass": "classdiagram#//Association",
+          "name": "hasBook",
+          "target": {
+            "$ref": "//@classes.1",
+            "eClass": "classdiagram#//Class"
+          }
+        }
+      ]
+    },
+    {
+      "eClass": "classdiagram#//Class",
+      "name": "Book",
+      "associations": [
+        {
+          "eClass": "classdiagram#//Association",
+          "name": "hasOrder",
+          "target": {
+            "$ref": "//@classes.2",
+            "eClass": "classdiagram#//Class"
+          }
+        }
+      ]
+    },
+    {
+      "eClass": "classdiagram#//Class",
+      "name": "Order"
+    }
+  ]
 }
-
-},{}],228:[function(require,module,exports){
+},{}],231:[function(require,module,exports){
 var EventEmitter2 = require('eventemitter2').EventEmitter2;
 
 module.exports = function () {
@@ -29888,7 +34003,8 @@ module.exports = function () {
 	return server;
 };
 
-},{"eventemitter2":37}],229:[function(require,module,exports){
+},{"eventemitter2":39}],232:[function(require,module,exports){
+var Ecore = require('ecore');
 var uuid = require('uuid');
 var Promise = require('promise');
 var createServer = require('./cc');
@@ -29944,14 +34060,23 @@ ModelInterface.prototype.on = function (event, cb) {
 	this.server.on(event, cb);
 };
 
-ModelInterface.prototype.load = function (model) {
-	this.server.load(model);
+ModelInterface.prototype.loadMetaModel = function (model) {
+	return this.server.loadMetaModel(model);
 };
 
-function ModelServer(metamodel) {
+ModelInterface.prototype.loadModel = function (model) {
+	return this.server.loadModel(model);
+};
+
+ModelInterface.prototype.getRawModel = function () {
+	return this.server.model;
+};
+
+function ModelServer() {
 	var self = this;
+	this.resourceSet = Ecore.ResourceSet.create();
+
 	this.server = createServer();
-	this.metamodel = metamodel;
 	this.classes = {};
 	this.server.on('model.createInstance', function (info) {
 		var instaceId = info.instaceId || uuid();
@@ -29983,6 +34108,38 @@ function ModelServer(metamodel) {
 	});
 }
 
+ModelServer.prototype.loadMetaModel = function (metamodel) {
+	var self = this;
+	return new Promise(function (resolve, reject) {
+		var callback = function (model, err) {
+			if (err) {
+				reject(err);
+				return;
+			}
+			self.metamodel = model;
+			self.fireUpdate();
+			resolve(model);
+		};
+		self.resourceSet.create({ uri: 'classdiagram' }).load(metamodel, callback);
+	});
+};
+
+ModelServer.prototype.loadModel = function (model) {
+	var self = this;
+	return new Promise(function (resolve, reject) {
+		var callback = function (model, err) {
+			if (err) {
+				reject(err);
+				return;
+			}
+			self.model = model;
+			self.fireUpdate();
+			resolve(model);
+		};
+		self.resourceSet.create({ uri: 'model.json' }).load(model, callback);
+	});
+};
+
 ModelServer.prototype.emit = function (event, args) {
 	this.server.emit(event, args);
 };
@@ -30009,16 +34166,9 @@ ModelServer.prototype.query = function (query) {
 	});
 };
 
-ModelServer.prototype.load = function (model) {
-	this.classes = model.classes;
-	this.root = model.root;
-	this.fireUpdate();
-};
-
 ModelServer.prototype.fireUpdate = function (model) {
 	this.server.emit('update', {
-		root: this.root,
-		classes: this.classes
+		model: this.model
 	});
 };
 
@@ -30055,4 +34205,4 @@ function __property(p) {
 
 module.exports = ModelServer;
 
-},{"./cc":228,"promise":38,"uuid":219}]},{},[224]);
+},{"./cc":231,"ecore":38,"promise":40,"uuid":222}]},{},[227]);

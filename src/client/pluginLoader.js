@@ -23,11 +23,13 @@ function loadScript(src, callback) {
 
 module.exports = function(cb) {
 	ajax.request("GET", '/plugins', {}, {}, function(pluginNames) {
+        /*
 		pluginNames.forEach(function(name) {
 			loadScript('/plugins/' + name, function() {
 				console.log('loaded', name);
 			});
 		});
+        */
 		cb(null, pluginNames);
 	}, function() {
 

@@ -12,7 +12,6 @@ let ExplorerComponent = React.createClass({
   componentWillMount: function() {
     var setState = this.setState.bind(this);
     var modelInterface = clooca.getModelInterface();
-    var metamodelInterface = clooca.getMetaModelInterface();
   },
 
   componentDidMount: function () {
@@ -25,10 +24,12 @@ let ExplorerComponent = React.createClass({
   },
 
   render: function () {
-  	var rootClass = this.props.model.classes[this.props.model.root];
+
+    var model = clooca.modelInterface.getRawModel().get('contents').first();
+    console.log(model);
     return (
     	<div>
-	    	<ExplorerItem model={this.props.model} class={rootClass}></ExplorerItem>
+	    	<ExplorerItem class={model}></ExplorerItem>
     	</div>
     );
   }
