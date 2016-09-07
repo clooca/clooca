@@ -1,40 +1,38 @@
 {
-	"id": "bookstore",
-	"name": "Book Store",
-	"root": "bookstore.bookstorediagram",
-	"classes": {
-		"bookstore.bookstorediagram": {
-			"id": "bookstore.bookstorediagram",
-			"type": "classdiagram.classdiagram",
-			"properties": {
-				"name": "bookstorediagram"
-			},
-			"relations": {
-				"book": {
-					"id": "bookstore.book"
-				}
-			}
-		},
-		"bookstore.book": {
-			"id": "bookstore.book",
-			"type": "classdiagram.package",
-			"properties": {
-				"name": "book"
-			},
-			"relations": {
-				"order": {
-					"id": "bookstore.order"
-				}
-			}
-		},
-		"bookstore.order": {
-			"id": "bookstore.order",
-			"type": "classdiagram.package",
-			"properties": {
-				"name": "order"
-			},
-			"relations": {
-			}
-		}
-	}
+  "eClass": "classdiagram#//Class Diagram",
+  "name": "Book",
+  "classes": [
+    {
+      "eClass": "classdiagram#//Class",
+      "name": "Author",
+      "associations": [
+        {
+          "eClass": "classdiagram#//Association",
+          "name": "hasBook",
+          "target": {
+            "$ref": "//@classes.1",
+            "eClass": "classdiagram#//Class"
+          }
+        }
+      ]
+    },
+    {
+      "eClass": "classdiagram#//Class",
+      "name": "Book",
+      "associations": [
+        {
+          "eClass": "classdiagram#//Association",
+          "name": "hasOrder",
+          "target": {
+            "$ref": "//@classes.2",
+            "eClass": "classdiagram#//Class"
+          }
+        }
+      ]
+    },
+    {
+      "eClass": "classdiagram#//Class",
+      "name": "Order"
+    }
+  ]
 }

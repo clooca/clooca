@@ -2,9 +2,12 @@ var fs = require('fs');
 var path = require('path');
 var express = require('express');
 var loader = require('./src/server/plugin/loader');
+var ejs = require('ejs');
 
 var app = express();
 app.use('/', express.static( path.resolve(__dirname, "dist") ));
+app.engine('ejs',ejs.renderFile);
+
 app.listen(process.env.PORT || 3000);
 
 //load plugins
@@ -20,7 +23,7 @@ app.get('/plugins', function(req, res) {
 	}))
 });
 
-app.get('/plugins/:name', function(req, res) {
+app.get('/plugins/:name/js', function(req, res) {
 	var name = req.params.name;
 	var target = plugins.filter(function(plugin) {
 		return plugin.name == name;
@@ -29,4 +32,11 @@ app.get('/plugins/:name', function(req, res) {
 		res.setHeader('Content-Type', 'text/script')
 		res.send(data);
 	});
+});
+
+app.get('/plugins/:name/html', function(req, res) {
+	var name = req.params.name;
+	res.render('plugin.ejs', {
+		name: name
+	})
 });

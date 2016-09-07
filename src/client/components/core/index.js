@@ -13,20 +13,19 @@ let CoreComponent = React.createClass({
   componentWillMount: function() {
   	var setState = this.setState.bind(this);
     var modelInterface = clooca.getModelInterface();
-    var metamodelInterface = clooca.getMetaModelInterface();
-    modelInterface.on('update', function(model) {
-      console.log(model);
+    modelInterface.on('update', function(e) {
+      console.log(e);
       setState({
-        model: model
+        model: e.model
       });
     });
-    metamodelInterface.on('update', function(metamodel) {
-      setState({
-        metamodel: metamodel
-      });
-    });
-    metamodelInterface.load( require('../../../common/assets/classdiagram/metamodel.json') );
-    modelInterface.load( require('../../../common/assets/classdiagram/model.json') );
+    modelInterface.loadMetaModel( require('../../../common/assets/classdiagram/metamodel.json') ).then(function(content) {
+      return modelInterface.loadModel( require('../../../common/assets/classdiagram/model.json') );
+    }).then(function(content) {
+      console.log(content)
+    }).catch(function(err){
+      console.error(err);
+    })
 
   },
 
@@ -55,10 +54,8 @@ let CoreComponent = React.createClass({
       return (<PluginItem pluginName={pluginName} onClick={self.changePlugin} ></PluginItem>)
     })
     var Component = clooca.getPluginComponent(this.state.plugin);
-    if(Component) {
-      content = (<Component
-        model={this.state.model}
-        metamodel={this.state.metamodel}></Component>)
+    if(this.state.plugin) {
+      content = (<iframe className="core-iframe" src={"/plugins/"+this.state.plugin+"/html"}></iframe>)
     }
 
     return (

@@ -1,0 +1,41 @@
+{
+  "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EPackage",
+  "name": "hello",
+  "nsURI": "http://ecore.js/hello",
+  "nsPrefix": "hello",
+  "eClassifiers": [
+    {
+      "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EClass",
+      "name": "Hello",
+      "abstract": false,
+      "interface": false,
+      "eStructuralFeatures": [
+        {
+          "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EAttribute",
+          "name": "world",
+          "eType": {
+            "$ref": "http://www.eclipse.org/emf/2002/Ecore#//EString",
+            "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EDataType"
+          },
+          "ordered": true,
+          "unique": true,
+          "lowerBound": 0,
+          "upperBound": 1
+        },
+        {
+          "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EReference",
+          "name": "closeTo",
+          "eType": {
+            "$ref": "//Hello",
+            "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EClass"
+          },
+          "ordered": true,
+          "unique": true,
+          "lowerBound": 0,
+          "upperBound": -1,
+          "containment": true
+        }
+      ]
+    }
+  ]
+}
