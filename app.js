@@ -1,21 +1,41 @@
 var fs = require('fs');
 var path = require('path');
+var nopt = require("nopt");
 var express = require('express');
 var loader = require('./src/server/plugin/loader');
 var ejs = require('ejs');
 
+var loadSettings = require('./src/server/util/loadSettings');
+
+
+var knownOpts = {
+    "settings":[path],
+    "plugin":[path],
+    "port": Number,
+    "help": Boolean
+};
+var shortHands = {
+    "s":["--settings"],
+    "pl":["--plugin"],
+    "p":["--port"],
+    "?":["--help"]
+};
+
+nopt.invalidHandler = function(k,v,t) {
+}
+
+var parsedArgs = nopt(knownOpts,shortHands,process.argv,2)
+
+var settings = loadSettings(parsedArgs);
+
+//load plugins
+var pluginPath = parsedArgs.plugin || settings.pluginPath || path.join(__dirname, "./plugins");
+var plugins = loader.load(pluginPath);
+
+
 var app = express();
 app.use('/', express.static( path.resolve(__dirname, "dist") ));
 app.engine('ejs',ejs.renderFile);
-
-app.listen(process.env.PORT || 3000);
-
-//load plugins
-var pluginPath = path.join(__dirname, "./plugins");
-
-
-
-var plugins = loader.load(pluginPath);
 
 app.get('/plugins', function(req, res) {
 	res.json(plugins.map(function(plugin) {
@@ -51,3 +71,6 @@ app.get('/plugins/:name/html', function(req, res) {
 		name: name
 	})
 });
+
+app.listen(process.env.PORT || 3000);
+
