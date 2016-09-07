@@ -33668,6 +33668,8 @@ clooca.prototype.registerPlugin = function (pluginName, component, type) {
 	this.registerdPlugins[pluginName] = component;
 };
 
+clooca.prototype.showAddInstanceModal = function (parentElement) {};
+
 module.exports = clooca;
 
 },{"../common/core/model":232}],225:[function(require,module,exports){

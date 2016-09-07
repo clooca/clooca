@@ -1,6 +1,6 @@
 var React = require('react');
 var transformer = require('../../transformer');
-
+var CreateModal = require('../modal/create');
 
 let ExplorerItem = React.createClass({
 
@@ -29,7 +29,14 @@ let ExplorerItem = React.createClass({
   	});
   },
 
-  onClick: function() {
+  addInstance: function() {
+    this.setState({
+      isOpenCreateModal: true
+    });
+    //console.log(model, model.eClass);
+    //model.get("classes").add();
+
+    /*
   	var target = this.props.class;
     var modelInterface = clooca.getModelInterface();
     var metamodelInterface = clooca.getMetaModelInterface();
@@ -40,6 +47,13 @@ let ExplorerItem = React.createClass({
   	}).catch(function(err) {
   		console.error(err.stack);
   	})
+    */
+  },
+
+  onCloseCreateModal: function(){
+    this.setState({
+      isOpenCreateModal: false
+    });
   },
 
   render: function () {
@@ -58,8 +72,13 @@ let ExplorerItem = React.createClass({
 
     return (
     	<div style={style}>
-	    	<div onClick={this.onClick}>{item.get('name')}</div>
+        <div className="tree-item">
+          <div className="tree-item-head">></div>
+          <div className="tree-item-title">{item.get('name')}</div>
+          <div className="tree-item-add" onClick={this.addInstance}>+</div>
+        </div>
 	    	<div>{ExplorerItems}</div>
+        <CreateModal isOpenCreateModal={this.state.isOpenCreateModal} onClose={this.onCloseCreateModal} model={this.props.item}></CreateModal>
     	</div>
     );
   }

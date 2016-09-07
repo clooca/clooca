@@ -25,8 +25,8 @@ let CoreComponent = React.createClass({
       console.log(content)
     }).catch(function(err){
       console.error(err);
-    })
-
+    });
+    
   },
 
   componentDidMount: function () {

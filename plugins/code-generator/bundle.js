@@ -21634,7 +21634,7 @@ let CodeGeneratorComponent = React.createClass({
   componentWillMount: function () {
     var setState = this.setState.bind(this);
     setState({
-      code: generate()
+      files: generate()
     });
   },
 
@@ -21648,7 +21648,13 @@ let CodeGeneratorComponent = React.createClass({
     return React.createElement(
       'div',
       null,
-      this.state.code
+      this.state.files.map(function (file) {
+        return React.createElement(
+          'div',
+          null,
+          file
+        );
+      })
     );
   }
 });
@@ -21660,9 +21666,14 @@ var Promise = require('promise');
 
 function generate() {
 	var model = clooca.modelInterface.getRawModel().get('contents').first();
-	console.log(model);
 	return model.get('classes').map(function (_class) {
-		return "package " + _class.get('name') + ";";
+		var str = "class " + _class.get('name');
+		if (_class.get('associations')) {
+			str += "{" + _class.get('associations').map(function (association) {
+				return 'var ' + association.get('name');
+			}).join(";") + "}";
+		}
+		return str;
 	});
 }
 

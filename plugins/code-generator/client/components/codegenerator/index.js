@@ -12,7 +12,7 @@ let CodeGeneratorComponent = React.createClass({
   componentWillMount: function() {
     var setState = this.setState.bind(this);
     setState({
-      code: generate()
+      files: generate()
     });
   },
 
@@ -28,7 +28,9 @@ let CodeGeneratorComponent = React.createClass({
   render: function () {
     return (
     	<div>
-    		{this.state.code}
+    		{this.state.files.map(function(file) {
+          return (<div>{file}</div>);
+        })}
     	</div>
     );
   }

@@ -34,6 +34,17 @@ app.get('/plugins/:name/js', function(req, res) {
 	});
 });
 
+app.get('/plugins/:name/css', function(req, res) {
+	var name = req.params.name;
+	var target = plugins.filter(function(plugin) {
+		return plugin.name == name;
+	})[0];
+	fs.readFile(path.join(target.path, "style.css"), function(err, data) {
+		res.setHeader('Content-Type', 'text/css')
+		res.send(data);
+	});
+});
+
 app.get('/plugins/:name/html', function(req, res) {
 	var name = req.params.name;
 	res.render('plugin.ejs', {
