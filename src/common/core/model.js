@@ -66,6 +66,9 @@ ModelInterface.prototype.getRawModel = function() {
 	return this.server.model;
 };
 
+ModelInterface.prototype.getRawMetaModel = function() {
+	return this.server.metamodel;
+};
 
 function ModelServer() {
 	var self = this;

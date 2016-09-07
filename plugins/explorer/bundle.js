@@ -20783,13 +20783,11 @@ let ExplorerComponent = React.createClass({
   componentWillUnmount: function () {},
 
   render: function () {
-
     var model = clooca.modelInterface.getRawModel().get('contents').first();
-    console.log(model);
     return React.createElement(
       'div',
       null,
-      React.createElement(ExplorerItem, { 'class': model })
+      React.createElement(ExplorerItem, { item: model })
     );
   }
 });
@@ -20798,9 +20796,10 @@ module.exports = ExplorerComponent;
 
 },{"./item":173,"react":171}],173:[function(require,module,exports){
 var React = require('react');
+var transformer = require('../../transformer');
 
 let ExplorerItem = React.createClass({
-  displayName: "ExplorerItem",
+  displayName: 'ExplorerItem',
 
 
   getInitialState: function () {
@@ -20840,22 +20839,25 @@ let ExplorerItem = React.createClass({
     var style = {
       "marginLeft": offset + "px"
     };
-    var ExplorerItems = !!this.props.class.get("classes") ? this.props.class.get("classes").map(function (_class) {
-      return React.createElement(ExplorerItem, { key: _class.get('name'), depth: offset + 12, "class": _class });
-    }) : [];
+    var item = this.props.item;
+    var items = transformer.transformPart(item);
 
-    console.log(this.props.class.get('name'));
+    var ExplorerItems = items.reduce(function (components, children) {
+      return components.concat(children.map(function (child) {
+        return React.createElement(ExplorerItem, { key: child.get('name'), depth: offset + 12, item: child });
+      }));
+    }, []);
 
     return React.createElement(
-      "div",
+      'div',
       { style: style },
       React.createElement(
-        "div",
+        'div',
         { onClick: this.onClick },
-        this.props.class.get('name')
+        item.get('name')
       ),
       React.createElement(
-        "div",
+        'div',
         null,
         ExplorerItems
       )
@@ -20865,7 +20867,7 @@ let ExplorerItem = React.createClass({
 
 module.exports = ExplorerItem;
 
-},{"react":171}],174:[function(require,module,exports){
+},{"../../transformer":175,"react":171}],174:[function(require,module,exports){
 var React = require('react');
 var ReactDOM = require('react-dom');
 
@@ -20880,4 +20882,20 @@ var mainEl = React.createElement(
 );
 ReactDOM.render(mainEl, document.getElementById('main'));
 
-},{"./components/explorer":172,"react":171,"react-dom":2}]},{},[174]);
+},{"./components/explorer":172,"react":171,"react-dom":2}],175:[function(require,module,exports){
+module.exports = {
+	transform: function () {
+		var model = clooca.modelInterface.getRawModel().get('contents').first();
+		return this.transformPart(model);
+	},
+	transformPart: function (model) {
+		var containments = model.eClass.get('eAllContainments').map(function (asso) {
+			return asso.get('name');
+		}).map(function (name) {
+			return model.get(name);
+		});
+		return containments;
+	}
+};
+
+},{}]},{},[174]);

@@ -11,10 +11,8 @@ let CodeGeneratorComponent = React.createClass({
 
   componentWillMount: function() {
     var setState = this.setState.bind(this);
-    generate().then(function(files) {
-	    setState({
-	    	code: files
-	    });
+    setState({
+      code: generate()
     });
   },
 

@@ -1,4 +1,6 @@
 var React = require('react');
+var transformer = require('../../transformer');
+
 
 let ExplorerItem = React.createClass({
 
@@ -45,15 +47,18 @@ let ExplorerItem = React.createClass({
   	var style = {
   		"marginLeft": offset+"px"
   	}
-  	var ExplorerItems = !!(this.props.class.get("classes"))?(this.props.class.get("classes").map(function(_class) {
-  		return (<ExplorerItem key={_class.get('name')} depth={offset+12} class={_class}></ExplorerItem>)
-  	})) : [];
+    var item = this.props.item;
+    var items = transformer.transformPart(item);
 
-    console.log(this.props.class.get('name'));
+  	var ExplorerItems = items.reduce(function(components, children) {
+      return components.concat(children.map(function(child) {
+        return (<ExplorerItem key={child.get('name')} depth={offset+12} item={child}></ExplorerItem>)
+      }))
+  	}, []);
 
     return (
     	<div style={style}>
-	    	<div onClick={this.onClick}>{this.props.class.get('name')}</div>
+	    	<div onClick={this.onClick}>{item.get('name')}</div>
 	    	<div>{ExplorerItems}</div>
     	</div>
     );

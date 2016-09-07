@@ -25,7 +25,10 @@ let Graph = React.createClass({
   },
 
   render: function () {
-  	var gnodes = Object.keys(this.props.model.classes);
+    var model = clooca.modelInterface.getRawModel().get('contents').first();
+    var gnodes = model.get('classes').map(function(_class) {
+      return _class.get('name')
+    });
   	var gnodeElems = gnodes.map(function(id) {
   		return (<GNode name={id}></GNode>);
   	});

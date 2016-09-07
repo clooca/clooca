@@ -33726,12 +33726,7 @@ let CoreComponent = React.createClass({
     });
     var Component = clooca.getPluginComponent(this.state.plugin);
     if (this.state.plugin) {
-      content = React.createElement('iframe', { src: "/plugins/" + this.state.plugin + "/html" });
-      /*
-      content = (<Component
-        model={this.state.model}
-        metamodel={this.state.metamodel}></Component>)
-        */
+      content = React.createElement('iframe', { className: 'core-iframe', src: "/plugins/" + this.state.plugin + "/html" });
     }
 
     return React.createElement(
@@ -34070,6 +34065,10 @@ ModelInterface.prototype.loadModel = function (model) {
 
 ModelInterface.prototype.getRawModel = function () {
 	return this.server.model;
+};
+
+ModelInterface.prototype.getRawMetaModel = function () {
+	return this.server.metamodel;
 };
 
 function ModelServer() {

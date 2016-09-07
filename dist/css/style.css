@@ -19,6 +19,12 @@ html, body{
 	border: solid 1px #555;
 }
 
+.core-iframe {
+    width: 480px;
+    height: 100%;
+    border: none;
+}
+
 .plugin-item {
 	cursor: pointer;
 	font-size: 14px;

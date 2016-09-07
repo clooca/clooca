@@ -55,12 +55,7 @@ let CoreComponent = React.createClass({
     })
     var Component = clooca.getPluginComponent(this.state.plugin);
     if(this.state.plugin) {
-      content = (<iframe src={"/plugins/"+this.state.plugin+"/html"}></iframe>)
-      /*
-      content = (<Component
-        model={this.state.model}
-        metamodel={this.state.metamodel}></Component>)
-        */
+      content = (<iframe className="core-iframe" src={"/plugins/"+this.state.plugin+"/html"}></iframe>)
     }
 
     return (

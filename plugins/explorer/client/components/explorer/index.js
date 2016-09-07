@@ -24,12 +24,10 @@ let ExplorerComponent = React.createClass({
   },
 
   render: function () {
-
     var model = clooca.modelInterface.getRawModel().get('contents').first();
-    console.log(model);
     return (
     	<div>
-	    	<ExplorerItem class={model}></ExplorerItem>
+	    	<ExplorerItem item={model}></ExplorerItem>
     	</div>
     );
   }
