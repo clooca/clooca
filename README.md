@@ -17,15 +17,38 @@ clienr/server両方をプラグイン化できます。
 - モデルインポータ・エクスポータ
 
 
+## Quick Start
 
-## build
+* こちらは未実装です
 
-```
-gulp watch
-```
+1. ```sudo npm install -g clooca```
+2. ```clooca```
+3. Open http://localhost:3000
 
-## start server
 
-```
-node app
-```
+## Developers
+
+
+1. Clone the code
+
+        git clone https://github.com/clooca/clooca.git
+        cd clooca
+
+2. Install dependencies
+
+        npm i
+
+3. Build the code
+
+        gulp watch
+
+4. Run
+
+        node app.js
+        
+
+## Authors
+
+* Shuhei Hiya [@syuhei_hiya](https://twitter.com/syuhei_hiya)
+
+Project's core team is [here](https://github.com/orgs/clooca/teams/core)
