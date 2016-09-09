@@ -3,12 +3,13 @@ var path = require('path');
 
 function load(pluginPath) {
 	var pluginNames = fs.readdirSync(pluginPath);
-	return pluginNames.map(function(pluginName) {
+	return pluginNames.map((pluginName) => {
 		var modulePath = path.join(pluginPath, pluginName);
-		if(fs.lstatSync(modulePath).isDirectory()) {
+		if(!this.alreadyLoaded[pluginName] && fs.lstatSync(modulePath).isDirectory()) {
 			try{
 				var pluginModule = require( modulePath );
 				console.log(pluginName, 'loaded');
+				this.alreadyLoaded[pluginName] = true;
 			}catch(e) {
 				console.error(e.message);
 			}
@@ -26,5 +27,6 @@ function load(pluginPath) {
 }
 
 module.exports = {
+	alreadyLoaded: {},
 	load: load
 }
