@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 var fs = require('fs');
 var path = require('path');
 var nopt = require("nopt");
@@ -35,6 +37,7 @@ var plugins = loader.load(pluginPath);
 
 var app = express();
 app.use('/', express.static( path.resolve(__dirname, "dist") ));
+app.set('views', path.join(__dirname, 'views'));
 app.engine('ejs',ejs.renderFile);
 
 app.get('/plugins', function(req, res) {
