@@ -10,7 +10,7 @@ var buffer     = require('vinyl-buffer');
 var appDir = __dirname;
 
 function build(src, dist, is_watch) {
-  var b = browserify(path.join(appDir, src || './src/index.js'), {}).transform("babelify", {presets: ["react"]});
+  var b = browserify(path.join(appDir, src || './src/index.js'), {}).transform("babelify", {presets: ['react', 'es2015']});
 
   if(is_watch) b.plugin(watchify);
 

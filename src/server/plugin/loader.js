@@ -6,8 +6,12 @@ function load(pluginPath) {
 	return pluginNames.map(function(pluginName) {
 		var modulePath = path.join(pluginPath, pluginName);
 		if(fs.lstatSync(modulePath).isDirectory()) {
-			var pluginModule = require( modulePath );
-			console.log(pluginName, 'loaded');
+			try{
+				var pluginModule = require( modulePath );
+				console.log(pluginName, 'loaded');
+			}catch(e) {
+				console.error(e.message);
+			}
 			//pluginModule(clooca);
 			return {
 				name: pluginName,

@@ -1,16 +1,18 @@
 {
-  "name": "rts-util",
-  "descrption": "real time storategy utility",
+  "name": "clooca",
+  "descrption": "clooca is a visual language platform",
   "version": "0.0.1",
   "author": {
     "name": "Shuhei Hiya"
   },
-  "private": true,
   "scripts": {
-    "start": "node app"
+    "start": "node app",
+    "build": "gulp build",
+    "watch": "gulp watch"
   },
   "engines": {
-    "node": ">=0.10.*"
+    "node": "4.2.x",
+    "npm": "2.14.20"
   },
   "dependencies": {
     "babel-preset-react": "^6.11.1",
@@ -26,15 +28,19 @@
     "express": "^4.14.0",
     "express-session": "^1.14.0",
     "nopt": "^3.0.6",
-    "promise": "^7.1.1",
     "react": "^15.3.0",
     "react-dom": "^15.3.0",
+    "react-modal": "^1.4.0",
+    "react-split-pane": "^0.1.44",
+    "react-tabs": "^0.7.0",
     "uuid": "^2.0.2",
     "vinyl-buffer": "^1.0.0",
     "vinyl-source-stream": "^1.1.0",
     "watchify": "^3.7.0"
   },
   "devDependencies": {
+    "babel-preset-es2015": "^6.14.0",
+    "babel-preset-react": "^6.11.1",
     "gulp": "^3.9.1",
     "gulp-util": "^3.0.7",
     "gulp-webserver": "^0.9.1"

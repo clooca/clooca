@@ -28,8 +28,8 @@ let CodeGeneratorComponent = React.createClass({
   render: function () {
     return (
     	<div>
-    		{this.state.files.map(function(file) {
-          return (<div>{file}</div>);
+    		{this.state.files.map(function(file, i) {
+          return (<div key={"cg"+i}>{file}</div>);
         })}
     	</div>
     );

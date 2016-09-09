@@ -30,7 +30,7 @@ let Graph = React.createClass({
       return _class.get('name')
     });
   	var gnodeElems = gnodes.map(function(id) {
-  		return (<GNode name={id}></GNode>);
+  		return (<GNode key={"gnode-"+id} name={id}></GNode>);
   	});
     return (
       <div><svg width="600" height="480"><g>{gnodeElems}</g></svg></div>

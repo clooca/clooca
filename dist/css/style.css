@@ -7,7 +7,7 @@ html, body{
 
 .core-pluginmenu {
 	float: left;
-	width: 120px;
+	width: 220px;
 	margin: 8px;
 	padding: 6px;
 	border: solid 1px #555;
@@ -20,8 +20,8 @@ html, body{
 }
 
 .core-iframe {
-    width: 480px;
-    height: 100%;
+    width: 100%;
+    height: 600px;
     border: none;
 }
 
@@ -33,6 +33,96 @@ html, body{
 .plugin-item:hover {
 	background-color: #e7fff0;
 }
+
+
+/* tab */
+
+.core-tabmenu{
+    padding:0px;
+    margin:0px;
+    color:#333;
+    font-size: 11px;
+    width:500px;
+    position:relative;
+}
+.core-tabmenu div.core-tab{
+    position: absolute;
+    top:0px;
+    left:0px;
+}
+.core-tabmenu div.core-tabitem{
+    float: left;
+    height: 40px;
+    line-height: 40px;
+    text-align: center;
+    width: 100px;
+    display: block;
+    text-decoration:none;
+    color:#333;
+    background:#eee;
+}
+.core-tabmenu div.core-tabitem:hover{
+    background:#000;
+    color:#fff;
+}
+.core-tab_content {
+    width:500px;
+    overflow:
+    hidden;clear:both;
+}
+
+/*split-pane*/
+
+
+    .Resizer {
+        background: #000;
+        opacity: .2;
+        z-index: 1;
+        -moz-box-sizing: border-box;
+        -webkit-box-sizing: border-box;
+        box-sizing: border-box;
+        -moz-background-clip: padding;
+        -webkit-background-clip: padding;
+        background-clip: padding-box;
+    }
+
+     .Resizer:hover {
+        -webkit-transition: all 2s ease;
+        transition: all 2s ease;
+    }
+
+     .Resizer.horizontal {
+        height: 11px;
+        margin: -5px 0;
+        border-top: 5px solid rgba(255, 255, 255, 0);
+        border-bottom: 5px solid rgba(255, 255, 255, 0);
+        cursor: row-resize;
+        width: 100%;
+    }
+
+    .Resizer.horizontal:hover {
+        border-top: 5px solid rgba(0, 0, 0, 0.5);
+        border-bottom: 5px solid rgba(0, 0, 0, 0.5);
+    }
+
+    .Resizer.vertical {
+        width: 11px;
+        margin: 0 -5px;
+        border-left: 5px solid rgba(255, 255, 255, 0);
+        border-right: 5px solid rgba(255, 255, 255, 0);
+        cursor: col-resize;
+    }
+
+    .Resizer.vertical:hover {
+        border-left: 5px solid rgba(0, 0, 0, 0.5);
+        border-right: 5px solid rgba(0, 0, 0, 0.5);
+    }
+    Resizer.disabled {
+      cursor: not-allowed;
+    }
+    Resizer.disabled:hover {
+      border-color: transparent;
+    }
 
 /*Loading Animation*/
 
