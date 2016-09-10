@@ -1,6 +1,5 @@
 var Ecore = require('ecore');
 var uuid = require('uuid');
-var Promise = require('promise');
 var createServer = require('./cc');
 
 function ModelInterface(server) {
