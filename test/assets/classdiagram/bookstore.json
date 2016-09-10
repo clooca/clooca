@@ -1,0 +1,38 @@
+{
+  "eClass": "classdiagram#//Class Diagram",
+  "name": "Book",
+  "classes": [
+    {
+      "eClass": "classdiagram#//Class",
+      "name": "Author",
+      "associations": [
+        {
+          "eClass": "classdiagram#//Association",
+          "name": "hasBook",
+          "target": {
+            "$ref": "//@classes.1",
+            "eClass": "classdiagram#//Class"
+          }
+        }
+      ]
+    },
+    {
+      "eClass": "classdiagram#//Class",
+      "name": "Book",
+      "associations": [
+        {
+          "eClass": "classdiagram#//Association",
+          "name": "hasOrder",
+          "target": {
+            "$ref": "//@classes.2",
+            "eClass": "classdiagram#//Class"
+          }
+        }
+      ]
+    },
+    {
+      "eClass": "classdiagram#//Class",
+      "name": "Order"
+    }
+  ]
+}

@@ -4,10 +4,10 @@ var fs = require('fs');
 var path = require('path');
 var nopt = require("nopt");
 var express = require('express');
-var loader = require('./src/server/plugin/loader');
+var loader = require('./src/server/core/pluginLoader');
 var ejs = require('ejs');
 
-var loadSettings = require('./src/server/util/loadSettings');
+var loadSettings = require('./src/server/core/settingsLoader');
 
 
 var knownOpts = {

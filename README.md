@@ -1,6 +1,8 @@
 # clooca
 Visual Language Platform
 
+[![CircleCI](https://circleci.com/gh/clooca/clooca.svg?style=svg)](https://circleci.com/gh/clooca/clooca)
+
 cloocaはコンセプト実証段階です。
 モデルインターフェースを中心に添えたプラグインエコシステムを構築します。
 clienr/server両方をプラグイン化できます。

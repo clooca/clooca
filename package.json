@@ -13,7 +13,8 @@
   "scripts": {
     "start": "node app",
     "build": "gulp build",
-    "watch": "gulp watch"
+    "watch": "gulp watch",
+    "test": "mocha --compilers .:test/compiler.js test  --recursive"
   },
   "main": "app.js",
   "bin": {
@@ -46,12 +47,15 @@
     "watchify": "^3.7.0"
   },
   "devDependencies": {
+    "babel-preset-es2015": "^6.14.0",
     "babel-preset-react": "^6.11.1",
     "babelify": "^7.3.0",
-    "babel-preset-es2015": "^6.14.0",
     "browserify": "^13.1.0",
     "gulp": "^3.9.1",
     "gulp-util": "^3.0.7",
-    "gulp-webserver": "^0.9.1"
+    "gulp-webserver": "^0.9.1",
+    "jsdom": "^9.5.0",
+    "mocha": "^3.0.2",
+    "react-addons-test-utils": "^15.3.1"
   }
 }
