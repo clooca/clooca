@@ -35954,59 +35954,10 @@ var TabAction = {
 module.exports = TabAction;
 
 },{}],247:[function(require,module,exports){
-"use strict";
-
-var http = require("http"),
-    https = require('https'),
-    querystring = require("querystring");
-
-function requestBrowser(method, path, params, headers, callback, errHandler, _type) {
-	var params_str = querystring.stringify(params);
-	var url = path;
-	var type = _type || "json";
-	if (method == 'GET' && params_str) {
-		url += '?' + params_str;
-	}
-	var xhr = createCORSRequest(method, url);
-	xhr.withCredentials = true;
-	xhr.onload = function () {
-		if (type == "json") {
-			callback(JSON.parse(xhr.responseText));
-		} else {
-			callback(xhr.responseText);
-		}
-	};
-	xhr.onerror = function () {
-		if (errHandler) errHandler(xhr.statusText || 'unknown error');
-	};
-	xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-	for (header_key in headers) {
-		xhr.setRequestHeader(header_key, headers[header_key]);
-	}
-	xhr.send(params_str);
-}
-
-module.exports = {
-	request: requestBrowser
-};
-
-function createCORSRequest(method, url) {
-	var xhr = new XMLHttpRequest();
-	if ("withCredentials" in xhr) {
-		xhr.open(method, url, true);
-	} else if (typeof XDomainRequest != "undefined") {
-		xhr = new XDomainRequest();
-		xhr.open(method, url);
-	} else {
-		xhr = null;
-	}
-	return xhr;
-}
-
-},{"http":233,"https":39,"querystring":62}],248:[function(require,module,exports){
 'use strict';
 
 var ModelServer = require('../common/core/model');
+var CC = require('./core/cc');
 
 function clooca() {
 	this.registerdPlugins = {};
@@ -36016,6 +35967,8 @@ function clooca() {
 
 	var server = new ModelServer(this.metamodelInterface);
 	this.modelInterface = server.getInterface();
+
+	this.cc = new CC();
 }
 
 clooca.prototype.getModelInterface = function () {
@@ -36024,6 +35977,16 @@ clooca.prototype.getModelInterface = function () {
 
 clooca.prototype.getMetaModelInterface = function () {
 	return this.metamodelInterface;
+};
+
+clooca.prototype.hasMethod = function (methodName) {
+	return false;
+};
+
+clooca.prototype.recvRequest = function (methodName) {};
+
+clooca.prototype.getCC = function () {
+	return this.cc;
 };
 
 clooca.prototype.getPluginComponent = function (pluginName) {
@@ -36039,7 +36002,7 @@ clooca.prototype.registerPlugin = function (pluginName, component, type) {
 
 module.exports = clooca;
 
-},{"../common/core/model":263}],249:[function(require,module,exports){
+},{"../common/core/model":262,"./core/cc":256}],248:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -36087,7 +36050,7 @@ var Header = React.createClass({
   render: function render() {
     return React.createElement(
       'div',
-      { style: { height: "32px", "border-bottom": "solid 1px #333", margin: "6px" } },
+      { style: { height: "32px", borderBottom: "solid 1px #333", margin: "6px" } },
       React.createElement(
         'div',
         { style: { float: "left" } },
@@ -36099,7 +36062,7 @@ var Header = React.createClass({
       ),
       React.createElement(
         'div',
-        { style: { float: "left", "margin-left": "30px" } },
+        { style: { float: "left", "marginLeft": "30px" } },
         React.createElement(
           Menu,
           null,
@@ -36114,7 +36077,7 @@ var Header = React.createClass({
 
 module.exports = Header;
 
-},{"../../actions/tab":246,"../menu":251,"../menu/item":252,"../modal/addTab":253,"react":225}],250:[function(require,module,exports){
+},{"../../actions/tab":246,"../menu":250,"../menu/item":251,"../modal/addTab":252,"react":225}],249:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -36142,18 +36105,19 @@ var CoreComponent = React.createClass({
   componentWillMount: function componentWillMount() {
     var setState = this.setState.bind(this);
     var modelInterface = clooca.getModelInterface();
-    modelInterface.on('update', function (e) {
-      console.log(e);
-      setState({
-        model: e.model
-      });
-    });
-    modelInterface.loadMetaModel(require('../../../common/assets/classdiagram/metamodel.json')).then(function (content) {
+    var cc = clooca.getCC();
+    var settings = null;
+    cc.request('clooca', 'getSettings', {}).then(function (_settings) {
+      settings = _settings;
+      return cc.request('clooca', 'findEcoreModel', { url: settings.metaModel.location });
+    }).then(function (model) {
+      return modelInterface.loadMetaModel(settings.metaModel.uri, model);
+    }).then(function (content) {
       return modelInterface.loadModel(require('../../../common/assets/classdiagram/model.json'));
     }).then(function (content) {
       console.log(content);
     }).catch(function (err) {
-      console.error(err);
+      console.error(err.stack);
     });
     EditorStore.observe(function (data) {
       setState({
@@ -36177,8 +36141,6 @@ var CoreComponent = React.createClass({
 
   render: function render() {
     var self = this;
-    var modelInterface = clooca.getModelInterface();
-    var metamodelInterface = clooca.getMetaModelInterface();
     var content = React.createElement('div', { className: 'loading-animation' });
     var pluginList = this.props.pluginNames.map(function (pluginName) {
       return React.createElement(PluginItem, { pluginName: pluginName, onClick: self.changePlugin });
@@ -36209,7 +36171,7 @@ var CoreComponent = React.createClass({
 
 module.exports = CoreComponent;
 
-},{"../../../common/assets/classdiagram/metamodel.json":260,"../../../common/assets/classdiagram/model.json":261,"../../actions/tab":246,"../../store/editor":259,"../plugin/item":254,"../plugin/panel":255,"../tab":256,"./header":249,"react":225,"react-split-pane":71}],251:[function(require,module,exports){
+},{"../../../common/assets/classdiagram/model.json":260,"../../actions/tab":246,"../../store/editor":259,"../plugin/item":253,"../plugin/panel":254,"../tab":255,"./header":248,"react":225,"react-split-pane":71}],250:[function(require,module,exports){
 "use strict";
 
 var React = require('react');
@@ -36238,7 +36200,7 @@ var Menu = React.createClass({
       null,
       React.createElement(
         "ul",
-        { style: { "list-style": "none", "margin": 0, "padding": 0 } },
+        { style: { "listStyle": "none", "margin": 0, "padding": 0 } },
         this.props.children
       ),
       React.createElement("div", { style: { overflow: 'hidden', clear: 'both' } })
@@ -36248,7 +36210,7 @@ var Menu = React.createClass({
 
 module.exports = Menu;
 
-},{"react":225}],252:[function(require,module,exports){
+},{"react":225}],251:[function(require,module,exports){
 "use strict";
 
 var React = require('react');
@@ -36282,7 +36244,7 @@ var MenuItem = React.createClass({
 
 module.exports = MenuItem;
 
-},{"react":225}],253:[function(require,module,exports){
+},{"react":225}],252:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -36331,7 +36293,7 @@ var AddTabModal = React.createClass({
     var options = this.props.pluginNames.map(function (name) {
       return React.createElement(
         'option',
-        null,
+        { key: 'addtab-' + name },
         name
       );
     });
@@ -36373,7 +36335,7 @@ var AddTabModal = React.createClass({
 
 module.exports = AddTabModal;
 
-},{"react":225,"react-modal":70}],254:[function(require,module,exports){
+},{"react":225,"react-modal":70}],253:[function(require,module,exports){
 "use strict";
 
 var React = require('react');
@@ -36411,7 +36373,7 @@ var PluginItem = React.createClass({
 
 module.exports = PluginItem;
 
-},{"react":225}],255:[function(require,module,exports){
+},{"react":225}],254:[function(require,module,exports){
 "use strict";
 
 var React = require('react');
@@ -36443,7 +36405,7 @@ var Panel = React.createClass({
 
 module.exports = Panel;
 
-},{"react":225}],256:[function(require,module,exports){
+},{"react":225}],255:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -36501,14 +36463,14 @@ var TabComponent = React.createClass({
     var tabItemComps = tabs.map(function (tabItem) {
       return React.createElement(
         Tab,
-        null,
+        { key: 'tab-' + tabItem.title },
         tabItem.title
       );
     });
     var tabPanelsComps = tabs.map(function (tabPanel) {
       return React.createElement(
         TabPanel,
-        null,
+        { key: 'tabpanel-' + tabPanel.title },
         React.createElement(Panel, { plugin: tabPanel.plugin })
       );
     });
@@ -36535,7 +36497,41 @@ var TabComponent = React.createClass({
 
 module.exports = TabComponent;
 
-},{"../plugin/panel":255,"react":225,"react-tabs":82}],257:[function(require,module,exports){
+},{"../plugin/panel":254,"react":225,"react-tabs":82}],256:[function(require,module,exports){
+'use strict';
+
+var ajax = require('../../common/utils/ajax');
+var registry = require('../../common/core/registry');
+
+function MQ() {}
+
+MQ.prototype.emit = function (first_argument) {
+	// body...
+};
+
+MQ.prototype.on = function (first_argument) {
+	// body...
+};
+
+MQ.prototype.request = function (moduleName, methodName, params) {
+	if (registry.getModule(moduleName).hasMethod(methodName)) {
+		return registry.getModule(moduleName).recvRequest(methodName, params);
+	} else {
+		return ajax.get('/cc/' + moduleName + '/' + methodName, params, { res: 'json' }).then(function (data) {
+			return new Promise(function (resolve, reject) {
+				if (data.err) {
+					reject(data.err);
+					return;
+				}
+				resolve(data.content);
+			});
+		});
+	}
+};
+
+module.exports = MQ;
+
+},{"../../common/core/registry":263,"../../common/utils/ajax":264}],257:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -36544,21 +36540,29 @@ var ReactDOM = require('react-dom');
 var CoreComponent = require('./components/core');
 var pluginLoader = require('./pluginLoader');
 var Clooca = require('./clooca');
-window.clooca = new Clooca();
+var registry = require('../common/core/registry');
 
-pluginLoader(function (err, pluginNames) {
+var clooca = new Clooca();
+window.clooca = clooca;
+
+pluginLoader().then(function (pluginNames) {
+	console.log(pluginNames);
 	var mainEl = React.createElement(
 		'div',
 		null,
 		React.createElement(CoreComponent, { pluginNames: pluginNames })
 	);
 	ReactDOM.render(mainEl, document.getElementById('main'));
+}).catch(function (err) {
+	console.error(err);
 });
 
-},{"./clooca":248,"./components/core":250,"./pluginLoader":258,"react":225,"react-dom":63}],258:[function(require,module,exports){
+registry.addModule('clooca', clooca);
+
+},{"../common/core/registry":263,"./clooca":247,"./components/core":249,"./pluginLoader":258,"react":225,"react-dom":63}],258:[function(require,module,exports){
 'use strict';
 
-var ajax = require('./ajax');
+var ajax = require('../common/utils/ajax');
 
 function loadScript(src, callback) {
     var done = false;
@@ -36581,22 +36585,13 @@ function loadScript(src, callback) {
 }
 
 module.exports = function (cb) {
-    ajax.request("GET", '/plugins', {}, {}, function (pluginNames) {
-        /*
-        pluginNames.forEach(function(name) {
-        loadScript('/plugins/' + name, function() {
-        console.log('loaded', name);
-        });
-        });
-        */
-        cb(null, pluginNames);
-    }, function () {}, "json");
+    return ajax.get('/plugins', {}, {
+        res: 'json'
+    });
 };
 
-},{"./ajax":247}],259:[function(require,module,exports){
+},{"../common/utils/ajax":264}],259:[function(require,module,exports){
 'use strict';
-
-var assign = require('../../common/utils/assign');
 
 var defaultData = {
 	tabs: [{
@@ -36615,7 +36610,7 @@ module.exports = {
 		return this.storedData;
 	},
 	update: function update(params) {
-		this.storedData = assign(this.storedData, params);
+		this.storedData = Object.assign(this.storedData, params);
 		this.fire(this.storedData);
 	},
 	fire: function fire(e) {
@@ -36629,115 +36624,7 @@ module.exports = {
 	}
 };
 
-},{"../../common/utils/assign":264}],260:[function(require,module,exports){
-module.exports={
-  "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EPackage",
-  "name": "Class Diagram",
-  "nsURI": "http://clooca.com/classdiagram",
-  "nsPrefix": "classdiagram",
-  "eClassifiers": [
-    {
-      "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EClass",
-      "name": "Class Diagram",
-      "abstract": false,
-      "interface": false,
-      "eStructuralFeatures": [
-        {
-          "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EAttribute",
-          "name": "name",
-          "eType": {
-            "$ref": "http://www.eclipse.org/emf/2002/Ecore#//EString",
-            "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EDataType"
-          },
-          "ordered": true,
-          "unique": true,
-          "lowerBound": 0,
-          "upperBound": 1
-        },
-        {
-          "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EReference",
-          "name": "classes",
-          "eType": {
-            "$ref": "//Class",
-            "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EClass"
-          },
-          "ordered": true,
-          "unique": true,
-          "lowerBound": 0,
-          "upperBound": -1,
-          "containment": true
-        }
-      ]
-    },
-    {
-      "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EClass",
-      "name": "Class",
-      "abstract": false,
-      "interface": false,
-      "eStructuralFeatures": [
-        {
-          "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EAttribute",
-          "name": "name",
-          "eType": {
-            "$ref": "http://www.eclipse.org/emf/2002/Ecore#//EString",
-            "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EDataType"
-          },
-          "ordered": true,
-          "unique": true,
-          "lowerBound": 0,
-          "upperBound": 1
-        },
-        {
-          "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EReference",
-          "name": "associations",
-          "eType": {
-            "$ref": "//Association",
-            "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EClass"
-          },
-          "ordered": true,
-          "unique": true,
-          "lowerBound": 0,
-          "upperBound": -1,
-          "containment": true
-        }
-      ]
-    },
-    {
-      "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EClass",
-      "name": "Association",
-      "abstract": false,
-      "interface": false,
-      "eStructuralFeatures": [
-        {
-          "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EAttribute",
-          "name": "name",
-          "eType": {
-            "$ref": "http://www.eclipse.org/emf/2002/Ecore#//EString",
-            "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EDataType"
-          },
-          "ordered": true,
-          "unique": true,
-          "lowerBound": 0,
-          "upperBound": 1
-        },
-        {
-          "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EReference",
-          "name": "target",
-          "eType": {
-            "$ref": "//Class",
-            "eClass": "http://www.eclipse.org/emf/2002/Ecore#//EClass"
-          },
-          "ordered": true,
-          "unique": true,
-          "lowerBound": 1,
-          "upperBound": 1,
-          "containment": false
-        }
-      ]
-    }
-  ]
-}
-},{}],261:[function(require,module,exports){
+},{}],260:[function(require,module,exports){
 module.exports={
   "eClass": "classdiagram#//Class Diagram",
   "name": "Book",
@@ -36776,7 +36663,7 @@ module.exports={
     }
   ]
 }
-},{}],262:[function(require,module,exports){
+},{}],261:[function(require,module,exports){
 'use strict';
 
 var EventEmitter2 = require('eventemitter2').EventEmitter2;
@@ -36791,7 +36678,7 @@ module.exports = function () {
 	return server;
 };
 
-},{"eventemitter2":11}],263:[function(require,module,exports){
+},{"eventemitter2":11}],262:[function(require,module,exports){
 'use strict';
 
 var Ecore = require('ecore');
@@ -36801,41 +36688,6 @@ var createServer = require('./cc');
 function ModelInterface(server) {
 	this.server = server;
 }
-
-//contain=trueのassociationを実体化
-//propertyを追加
-ModelInterface.prototype.createInstance = function (parentId, associationId, args) {
-	this.server.emit('model.createInstance', {
-		parentId: parentId,
-		associationId: associationId,
-		args: args
-	});
-};
-
-//contain=trueのassociationを削除
-//propertyを削除
-ModelInterface.prototype.deleteInstance = function (instanceId) {
-	this.server.emit('model.deleteInstance', {
-		instanceId: instanceId
-	});
-};
-
-//contain=falseのassociationを実体化
-ModelInterface.prototype.associate = function (instanceId, associationId, targetId) {
-	this.server.emit('model.associate', {
-		instanceId: instanceId,
-		associationId: associationId,
-		targetId: targetId
-	});
-};
-
-//propertyを更新
-ModelInterface.prototype.updateProperties = function (instanceId, params) {
-	this.server.emit('model.updateProperties', {
-		instanceId: instanceId,
-		params: params
-	});
-};
 
 ModelInterface.prototype.getInstance = function (id) {
 	return this.server.query({ id: id });
@@ -36849,8 +36701,8 @@ ModelInterface.prototype.on = function (event, cb) {
 	this.server.on(event, cb);
 };
 
-ModelInterface.prototype.loadMetaModel = function (model) {
-	return this.server.loadMetaModel(model);
+ModelInterface.prototype.loadMetaModel = function (uri, data) {
+	return this.server.loadMetaModel(uri, data);
 };
 
 ModelInterface.prototype.loadModel = function (model) {
@@ -36868,40 +36720,10 @@ ModelInterface.prototype.getRawMetaModel = function () {
 function ModelServer() {
 	var self = this;
 	this.resourceSet = Ecore.ResourceSet.create();
-
 	this.server = createServer();
-	this.classes = {};
-	this.server.on('model.createInstance', function (info) {
-		var instaceId = info.instaceId || uuid();
-		var parentId = info.parentId;
-		var associationId = info.associationId;
-		var args = info.args;
-		self.__class(associationId, instaceId, args).then(function (_class) {
-			self.classes[instaceId] = _class;
-			self.classes[parentId].relations[instaceId] = {
-				id: instaceId,
-				type: associationId
-			};
-			self.server.emit('model.createInstance.after', _class);
-			self.fireUpdate();
-		}).catch(function (err) {
-			console.error(err.stack);
-		});
-	});
-	this.server.on('model.relation', function (newEdge) {
-		//create edge
-		var node_id = newEdge.node_id;
-		var id = newEdge.id || uuid();
-		nodes[node_id].edges[id] = __edge(newEdge);
-	});
-	this.server.on('model.property', function (property) {
-		var node_id = property.node_id;
-		var id = property.id || uuid();
-		nodes[node_id].property[id] = __property(property);
-	});
 }
 
-ModelServer.prototype.loadMetaModel = function (metamodel) {
+ModelServer.prototype.loadMetaModel = function (uri, data) {
 	var self = this;
 	return new Promise(function (resolve, reject) {
 		var callback = function callback(model, err) {
@@ -36913,7 +36735,7 @@ ModelServer.prototype.loadMetaModel = function (metamodel) {
 			self.fireUpdate();
 			resolve(model);
 		};
-		self.resourceSet.create({ uri: 'classdiagram' }).load(metamodel, callback);
+		self.resourceSet.create({ uri: uri }).load(data, callback);
 	});
 };
 
@@ -36939,6 +36761,7 @@ ModelServer.prototype.emit = function (event, args) {
 
 ModelServer.prototype.on = function (event, cb) {
 	this.server.on(event, cb);
+	this.fireUpdate();
 };
 
 ModelServer.prototype.query = function (query) {
@@ -36960,57 +36783,226 @@ ModelServer.prototype.query = function (query) {
 };
 
 ModelServer.prototype.fireUpdate = function (model) {
-	this.server.emit('update', {
-		model: this.model
-	});
+	if (this.model) {
+		this.server.emit('update', {
+			model: this.model
+		});
+	}
 };
 
 ModelServer.prototype.getInterface = function () {
 	return new ModelInterface(this);
 };
 
-ModelServer.prototype.__class = function (associationId, id, args) {
-	var self = this;
-	console.log(associationId);
-	return self.metamodel.getInstance(associationId).then(function (association) {
-		return self.metamodel.getInstance(association.properties.target);
-	}).then(function (target) {
-		return new Promise(function (resolve, reject) {
-			resolve({
-				id: id,
-				type: target.id,
-				properties: {
-					name: "aaa"
-				},
-				relations: {}
-			});
-		});
-	});
-};
-
-function __edge(e) {
-	return e;
-}
-
-function __property(p) {
-	return p;
-}
-
 module.exports = ModelServer;
 
-},{"./cc":262,"ecore":9,"uuid":244}],264:[function(require,module,exports){
+},{"./cc":261,"ecore":9,"uuid":244}],263:[function(require,module,exports){
 "use strict";
 
-module.exports = function (target, items) {
+function addModule(moduleName, moduleObject) {
+	this._modules[moduleName] = moduleObject;
+}
 
-    items = [].slice.call(arguments);
+function getModule(moduleName) {
+	return this._modules[moduleName];
+}
 
-    return items.reduce(function (target, item) {
-        return Object.keys(item).reduce(function (target, property) {
-            target[property] = item[property];
-            return target;
-        }, target);
-    }, target);
+module.exports = {
+	_modules: {},
+	addModule: addModule,
+	getModule: getModule
 };
 
-},{}]},{},[257]);
+},{}],264:[function(require,module,exports){
+(function (process){
+"use strict";
+
+var http = require("http"),
+    https = require('https'),
+    querystring = require("querystring"),
+    URL = require('url');
+
+/**
+ * @params options req,res
+ */
+function request(method, url, params, headers, callback, _dataOptions) {
+	var dataOptions = _dataOptions || {};
+	var urlObject = URL.parse(url);
+	var http_client = urlObject.protocol == "https:" ? https : http;
+	if (dataOptions.req == 'json') {
+		headers['Content-Type'] = 'application/json';
+	} else {
+		headers['Content-Type'] = 'application/x-www-form-urlencoded';
+	}
+	var options = {
+		hostname: urlObject.hostname,
+		port: urlObject.port,
+		path: urlObject.path,
+		method: method,
+		headers: headers
+	};
+
+	if (method == 'GET' || method == 'DELETE') {
+		var postItem = querystring.stringify(params);
+		options.path += '?' + postItem;
+		http_client.get(options, process_response).on('error', function (e) {
+			callback(e);
+		});
+	} else {
+		var req = http_client.request(options, process_response);
+		req.setTimeout(5000);
+		req.on('timeout', function () {
+			if (callback) callback(new Error("timed out"), null);
+			req.abort();
+		});
+		req.on('error', function (err) {
+			if (callback) callback(err, null);
+		});
+		if (dataOptions.req == 'json') {
+			var postItem = JSON.stringify(params);
+		} else {
+			var postItem = querystring.stringify(params);
+		}
+		var postItem = querystring.stringify(params);
+		req.write(postItem);
+		req.end();
+	}
+
+	function process_response(res) {
+		if (callback) {
+			var content = "";
+			res.on('data', function (str) {
+				content += str;
+			});
+			res.on('end', function () {
+				responseType(dataOptions, content, callback);
+			});
+		}
+	}
+}
+
+function requestBrowser(method, url, params, headers, callback, _options) {
+	var options = _options || {};
+	var urlObject = URL.parse(url);
+	if (method == 'GET' || method == 'DELETE') {
+		url += '?' + querystring.stringify(params);
+	}
+	var xhr = createCORSRequest(method, url);
+	xhr.withCredentials = true;
+	xhr.onload = function () {
+		responseType(options, xhr.responseText, callback);
+	};
+	xhr.onerror = function () {
+		callback(xhr.statusText || 'unknown error');
+	};
+	if (options.req == 'json') {
+		xhr.setRequestHeader("Content-type", "application/json");
+		var params_str = JSON.stringify(params);
+	} else {
+		xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+		var params_str = querystring.stringify(params);
+	}
+	for (header_key in headers) {
+		xhr.setRequestHeader(header_key, headers[header_key]);
+	}
+	if (method == 'GET' || method == 'DELETE') {
+		xhr.send();
+	} else {
+		xhr.send(params_str);
+	}
+}
+
+function post(url, params, options) {
+	var _this = this;
+
+	return new Promise(function (resolve, reject) {
+		_this.request('POST', url, params, {}, function (err, data) {
+			if (err) {
+				return reject(err);
+			}
+			resolve(data);
+		}, options);
+	});
+}
+
+function get(url, qs, options) {
+	var _this2 = this;
+
+	return new Promise(function (resolve, reject) {
+		_this2.request('GET', url, qs, {}, function (err, data) {
+			if (err) {
+				return reject(err);
+			}
+			resolve(data);
+		}, options);
+	});
+}
+
+function put(url, params, options) {
+	var _this3 = this;
+
+	return new Promise(function (resolve, reject) {
+		_this3.request('PUT', url, params, {}, function (err, data) {
+			if (err) {
+				return reject(err);
+			}
+			resolve(data);
+		}, options);
+	});
+}
+
+function deleteMethod(url, qs, options) {
+	var _this4 = this;
+
+	return new Promise(function (resolve, reject) {
+		_this4.request('GET', url, qs, {}, function (err, data) {
+			if (err) {
+				return reject(err);
+			}
+			resolve(data);
+		}, options);
+	});
+}
+
+if ('browser' !== process.title) {
+	module.exports = {
+		request: request,
+		post: post,
+		get: get,
+		put: put,
+		delete: deleteMethod
+	};
+} else {
+	module.exports = {
+		request: requestBrowser,
+		post: post,
+		get: get,
+		put: put,
+		delete: deleteMethod
+	};
+}
+
+function responseType(options, data, callback) {
+	if (options.res == 'json') {
+		var result = JSON.parse(data);
+	} else {
+		var result = data;
+	}
+	callback(null, result);
+}
+
+function createCORSRequest(method, url) {
+	var xhr = new XMLHttpRequest();
+	if ("withCredentials" in xhr) {
+		xhr.open(method, url, true);
+	} else if (typeof XDomainRequest != "undefined") {
+		xhr = new XDomainRequest();
+		xhr.open(method, url);
+	} else {
+		xhr = null;
+	}
+	return xhr;
+}
+
+}).call(this,require('_process'))
+},{"_process":58,"http":233,"https":39,"querystring":62,"url":240}]},{},[257]);

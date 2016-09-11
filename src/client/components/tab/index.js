@@ -54,11 +54,11 @@ let TabComponent = React.createClass({
   render: function () {
     var tabs = (!!this.props.editorSettings)?this.props.editorSettings.tabs:[];
   	var tabItemComps = tabs.map(function(tabItem) {
-  		return (<Tab>{tabItem.title}</Tab>);
+  		return (<Tab key={'tab-'+tabItem.title}>{tabItem.title}</Tab>);
   	});
   	var tabPanelsComps = tabs.map(function(tabPanel) {
   		return (
-        <TabPanel>
+        <TabPanel key={'tabpanel-'+tabPanel.title}>
           <Panel plugin={tabPanel.plugin}></Panel>
         </TabPanel>
         );

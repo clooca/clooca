@@ -1,5 +1,3 @@
-var assign = require('../../common/utils/assign');
-
 var defaultData = {
 	tabs: [{
 		title: 'Diagram Editor',
@@ -17,7 +15,7 @@ module.exports = {
 		return this.storedData;
 	},
 	update: function(params) {
-		this.storedData = assign(this.storedData, params);
+		this.storedData = Object.assign(this.storedData, params);
 		this.fire(this.storedData);
 	},
 	fire: function(e) {

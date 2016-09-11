@@ -11,8 +11,13 @@ let Graph = React.createClass({
   },
 
   componentWillMount: function() {
-  	//viewer mode
-  	//resizable
+    var setState = this.setState.bind(this);
+    var modelInterface = clooca.getModelInterface();
+    modelInterface.on('update', function(e) {
+      setState({
+        resources: e.model
+      });
+    });
   },
 
   componentDidMount: function () {
@@ -25,7 +30,8 @@ let Graph = React.createClass({
   },
 
   render: function () {
-    var model = clooca.modelInterface.getRawModel().get('contents').first();
+    if(!this.state.resources) return(<div/>);
+    var model = this.state.resources.get('contents').first();
     var gnodes = model.get('classes').map(function(_class) {
       return _class.get('name')
     });

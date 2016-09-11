@@ -1,5 +1,6 @@
 var React = require('react');
 var ExplorerItem = require('./item');
+var transformer = require('../../transformer');
 
 let ExplorerComponent = React.createClass({
 
@@ -12,6 +13,12 @@ let ExplorerComponent = React.createClass({
   componentWillMount: function() {
     var setState = this.setState.bind(this);
     var modelInterface = clooca.getModelInterface();
+    modelInterface.on('update', function(e) {
+      var model = e.model.get('contents').first();
+      setState({
+        model: model
+      });
+    });
   },
 
   componentDidMount: function () {
@@ -24,11 +31,14 @@ let ExplorerComponent = React.createClass({
   },
 
   render: function () {
-    var model = clooca.modelInterface.getRawModel().get('contents').first();
+    let content = (<div/>);
+    if(this.state.model) {
+      content = (<ExplorerItem item={this.state.model}></ExplorerItem>);
+    }
     return (
-    	<div>
-	    	<ExplorerItem item={model}></ExplorerItem>
-    	</div>
+      <div>
+      {content}
+      </div>
     );
   }
 });

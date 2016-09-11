@@ -42,7 +42,7 @@ var AddTabModal = React.createClass({
 
   render: function() {
     var options = this.props.pluginNames.map(function(name) {
-      return (<option>{name}</option>);
+      return (<option key={'addtab-'+name}>{name}</option>);
     });
     return (
       <div>

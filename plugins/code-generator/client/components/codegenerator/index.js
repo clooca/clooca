@@ -11,8 +11,11 @@ let CodeGeneratorComponent = React.createClass({
 
   componentWillMount: function() {
     var setState = this.setState.bind(this);
-    setState({
-      files: generate()
+    var modelInterface = clooca.getModelInterface();
+    modelInterface.on('update', function(e) {
+      setState({
+        files: generate(e.model)
+      });
     });
   },
 

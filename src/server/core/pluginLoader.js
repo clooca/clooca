@@ -1,5 +1,6 @@
 var fs = require('fs');
 var path = require('path');
+var registry = require('../../common/core/registry');
 
 function load(pluginPath) {
 	try{
@@ -20,7 +21,7 @@ function load(pluginPath) {
 			}catch(e) {
 				console.error(e.message);
 			}
-			//pluginModule(clooca);
+			registry.addModule(pluginName, pluginModule);
 			return {
 				name: pluginName,
 				path: modulePath

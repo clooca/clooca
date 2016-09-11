@@ -19,20 +19,21 @@ let CoreComponent = React.createClass({
   },
 
   componentWillMount: function() {
-  	var setState = this.setState.bind(this);
-    var modelInterface = clooca.getModelInterface();
-    modelInterface.on('update', function(e) {
-      console.log(e);
-      setState({
-        model: e.model
-      });
-    });
-    modelInterface.loadMetaModel( require('../../../common/assets/classdiagram/metamodel.json') ).then(function(content) {
+  	let setState = this.setState.bind(this);
+    let modelInterface = clooca.getModelInterface();
+    let cc = clooca.getCC();
+    let settings = null;
+    cc.request('clooca', 'getSettings', {}).then((_settings) => {
+      settings = _settings;
+      return cc.request('clooca', 'findEcoreModel', {url: settings.metaModel.location});
+    }).then((model) => {
+      return modelInterface.loadMetaModel( settings.metaModel.uri, model );
+    }).then(function(content) {
       return modelInterface.loadModel( require('../../../common/assets/classdiagram/model.json') );
     }).then(function(content) {
       console.log(content)
     }).catch(function(err){
-      console.error(err);
+      console.error(err.stack);
     });
     EditorStore.observe((data) => {
       setState({
@@ -59,8 +60,6 @@ let CoreComponent = React.createClass({
 
   render: function () {
     var self = this;
-    var modelInterface = clooca.getModelInterface();
-    var metamodelInterface = clooca.getMetaModelInterface();
   	var content = (<div className="loading-animation"/>);
     var pluginList = this.props.pluginNames.map(function(pluginName) {
       return (<PluginItem pluginName={pluginName} onClick={self.changePlugin} ></PluginItem>)

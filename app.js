@@ -4,8 +4,13 @@ var fs = require('fs');
 var path = require('path');
 var nopt = require("nopt");
 var express = require('express');
+var bodyParser = require('body-parser');
 var loader = require('./src/server/core/pluginLoader');
 var ejs = require('ejs');
+var ccRestMiddleware = require('./src/server/core/cc/rest');
+var registry = require('./src/common/core/registry');
+
+var CloocaModule = require('./src/server/core/clooca');
 
 var loadSettings = require('./src/server/core/settingsLoader');
 
@@ -37,6 +42,7 @@ var corePlugins = loader.load(path.resolve(__dirname, './plugins'));
 plugins = plugins.concat(corePlugins);
 
 var app = express();
+app.use(bodyParser.json({}));
 app.use('/', express.static( path.resolve(__dirname, "dist") ));
 app.set('views', path.join(__dirname, 'views'));
 app.engine('ejs',ejs.renderFile);
@@ -76,5 +82,8 @@ app.get('/plugins/:name/html', function(req, res) {
 	})
 });
 
+app.get('/cc/:moduleName/:methodName', ccRestMiddleware());
+
 app.listen(process.env.PORT || 3000);
 
+registry.addModule('clooca', new CloocaModule(settings));

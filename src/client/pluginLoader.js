@@ -1,4 +1,4 @@
-var ajax = require('./ajax');
+var ajax = require('../common/utils/ajax');
 
 function loadScript(src, callback) {
     var done = false;
@@ -22,17 +22,7 @@ function loadScript(src, callback) {
 }
 
 module.exports = function(cb) {
-	ajax.request("GET", '/plugins', {}, {}, function(pluginNames) {
-        /*
-		pluginNames.forEach(function(name) {
-			loadScript('/plugins/' + name, function() {
-				console.log('loaded', name);
-			});
-		});
-        */
-		cb(null, pluginNames);
-	}, function() {
-
-	}, "json");
-
+    return ajax.get('/plugins', {}, {
+        res: 'json'
+    });
 }

@@ -1,7 +1,6 @@
-var Promise = require('promise');
 
-function generate() {
-    var model = clooca.modelInterface.getRawModel().get('contents').first();
+function generate(resources) {
+    var model = resources.get('contents').first();
 	return model.get('classes').map(function(_class) {
 		var str = "class "+_class.get('name');
 		if(_class.get('associations')) {

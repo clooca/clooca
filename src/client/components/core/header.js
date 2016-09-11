@@ -44,11 +44,11 @@ let Header = React.createClass({
 
   render: function () {
     return (
-    	<div style={{height:"32px", "border-bottom":"solid 1px #333", margin: "6px"}}>
+    	<div style={{height:"32px", borderBottom:"solid 1px #333", margin: "6px"}}>
     		<div style={{float:"left"}}>
 	    		<div>clooca</div>
     		</div>
-    		<div style={{float:"left", "margin-left":"30px"}}>
+    		<div style={{float:"left", "marginLeft":"30px"}}>
     			<Menu>
             <MenuItem title="タブを追加" onSelect={this.onAddTabMenuSelected}></MenuItem>
           </Menu>

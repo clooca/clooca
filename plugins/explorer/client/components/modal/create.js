@@ -32,7 +32,7 @@ var CreateModal = React.createClass({
   },
 
   okModal: function() {
-	var model = this.props.model;
+    var model = this.props.model;
   	var association = this.refs.association.value;
   	var name = this.refs.name.value;
   	model.get(association).add(model.eClass.create({name:name}));

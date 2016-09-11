@@ -6,41 +6,6 @@ function ModelInterface(server) {
 	this.server = server;
 }
 
-//contain=trueのassociationを実体化
-//propertyを追加
-ModelInterface.prototype.createInstance = function(parentId, associationId, args) {
-	this.server.emit('model.createInstance', {
-		parentId: parentId,
-		associationId: associationId,
-		args: args
-	});
-};
-
-//contain=trueのassociationを削除
-//propertyを削除
-ModelInterface.prototype.deleteInstance = function(instanceId) {
-	this.server.emit('model.deleteInstance', {
-		instanceId: instanceId
-	});
-};
-
-//contain=falseのassociationを実体化
-ModelInterface.prototype.associate = function(instanceId, associationId, targetId) {
-	this.server.emit('model.associate', {
-		instanceId: instanceId,
-		associationId: associationId,
-		targetId: targetId
-	});
-};
-
-//propertyを更新
-ModelInterface.prototype.updateProperties = function(instanceId, params) {
-	this.server.emit('model.updateProperties', {
-		instanceId: instanceId,
-		params: params
-	});
-};
-
 ModelInterface.prototype.getInstance = function(id) {
 	return this.server.query({id: id});
 }
@@ -53,8 +18,8 @@ ModelInterface.prototype.on = function(event, cb) {
 	this.server.on(event, cb);
 };
 
-ModelInterface.prototype.loadMetaModel = function(model) {
-	return this.server.loadMetaModel(model);
+ModelInterface.prototype.loadMetaModel = function(uri, data) {
+	return this.server.loadMetaModel(uri, data);
 };
 
 ModelInterface.prototype.loadModel = function(model) {
@@ -72,40 +37,10 @@ ModelInterface.prototype.getRawMetaModel = function() {
 function ModelServer() {
 	var self = this;
 	this.resourceSet = Ecore.ResourceSet.create();
-
 	this.server = createServer();
-	this.classes = {};
-	this.server.on('model.createInstance', function(info) {
-		var instaceId = info.instaceId || uuid();
-		var parentId = info.parentId;
-		var associationId = info.associationId;
-		var args = info.args;
-		self.__class(associationId, instaceId, args).then(function(_class) {
-			self.classes[instaceId] = _class;
-			self.classes[parentId].relations[instaceId] = {
-				id: instaceId,
-				type: associationId
-			}
-			self.server.emit('model.createInstance.after', _class);
-			self.fireUpdate();
-		}).catch(function(err) {
-			console.error(err.stack);
-		})
-	});
-	this.server.on('model.relation', function(newEdge) {
-		//create edge
-		var node_id = newEdge.node_id;
-		var id = newEdge.id || uuid();
-		nodes[node_id].edges[id] = __edge(newEdge);
-	});
-	this.server.on('model.property', function(property) {
-		var node_id = property.node_id;
-		var id = property.id || uuid();
-		nodes[node_id].property[id] = __property(property);
-	});
 }
 
-ModelServer.prototype.loadMetaModel = function(metamodel) {
+ModelServer.prototype.loadMetaModel = function(uri, data) {
 	var self = this;
 	return new Promise(function(resolve, reject) {
 		var callback = function(model, err) {
@@ -117,7 +52,7 @@ ModelServer.prototype.loadMetaModel = function(metamodel) {
 			self.fireUpdate();
 			resolve(model);
 		};
-		self.resourceSet.create({ uri: 'classdiagram' }).load(metamodel, callback);
+		self.resourceSet.create({ uri: uri }).load(data, callback);
 	})
 }
 
@@ -144,6 +79,7 @@ ModelServer.prototype.emit = function(event, args) {
 
 ModelServer.prototype.on = function(event, cb) {
 	this.server.on(event, cb);
+	this.fireUpdate();
 }
 
 ModelServer.prototype.query = function(query) {
@@ -166,42 +102,16 @@ ModelServer.prototype.query = function(query) {
 }
 
 ModelServer.prototype.fireUpdate = function(model) {
-	this.server.emit('update', {
-		model : this.model
-	});
+	if(this.model) {
+		this.server.emit('update', {
+			model : this.model
+		});
+	}
 }
 
 ModelServer.prototype.getInterface = function() {
 	return new ModelInterface(this);
 }
 
-ModelServer.prototype.__class = function(associationId, id, args) {
-	var self = this;
-	console.log(associationId);
-	return self.metamodel.getInstance(associationId).then(function(association) {
-		return self.metamodel.getInstance(association.properties.target);
-	}).then(function(target) {
-		return new Promise(function(resolve, reject) {
-			resolve( {
-				id: id,
-				type: target.id,
-				properties: {
-					name: "aaa"
-				},
-				relations: {
-
-				}
-			} );
-		});
-	})
-}
-
-function __edge(e) {
-	return e;
-}
-
-function __property(p) {
-	return p;
-}
 
 module.exports = ModelServer;

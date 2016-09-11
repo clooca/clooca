@@ -1,5 +1,5 @@
 var ModelServer = require('../common/core/model');
-
+var CC = require('./core/cc');
 
 function clooca() {
 	this.registerdPlugins = {};
@@ -9,6 +9,8 @@ function clooca() {
 
 	var server = new ModelServer(this.metamodelInterface);
 	this.modelInterface = server.getInterface();
+
+	this.cc = new CC();
 }
 
 clooca.prototype.getModelInterface = function() {
@@ -18,6 +20,18 @@ clooca.prototype.getModelInterface = function() {
 clooca.prototype.getMetaModelInterface = function() {
 	return this.metamodelInterface;
 }
+
+clooca.prototype.hasMethod = function(methodName) {
+	return false;
+};
+
+clooca.prototype.recvRequest = function(methodName) {
+};
+
+clooca.prototype.getCC = function() {
+	return this.cc;
+};
+
 
 clooca.prototype.getPluginComponent = function(pluginName) {
 	return this.registerdPlugins[pluginName];

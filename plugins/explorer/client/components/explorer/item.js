@@ -33,21 +33,6 @@ let ExplorerItem = React.createClass({
     this.setState({
       isOpenCreateModal: true
     });
-    //console.log(model, model.eClass);
-    //model.get("classes").add();
-
-    /*
-  	var target = this.props.class;
-    var modelInterface = clooca.getModelInterface();
-    var metamodelInterface = clooca.getMetaModelInterface();
-
-  	metamodelInterface.getInstance(target.type).then(function(metaClass) {
-  		var association = Object.keys(metaClass.relations)[0];
-	  	modelInterface.createInstance(target.id, association, {});
-  	}).catch(function(err) {
-  		console.error(err.stack);
-  	})
-    */
   },
 
   onCloseCreateModal: function(){
@@ -63,6 +48,10 @@ let ExplorerItem = React.createClass({
   	}
     var item = this.props.item;
     var items = transformer.transformPart(item);
+    /*
+    var ExplorerItems = this.props.item.children.map(function(child) {
+      return (<ExplorerItem key={child.name} depth={offset+12} item={child}></ExplorerItem>)
+    });*/
 
   	var ExplorerItems = items.reduce(function(components, children) {
       return components.concat(children.map(function(child) {

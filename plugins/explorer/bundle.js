@@ -20764,6 +20764,7 @@ module.exports = require('./lib/React');
 
 var React = require('react');
 var ExplorerItem = require('./item');
+var transformer = require('../../transformer');
 
 var ExplorerComponent = React.createClass({
   displayName: 'ExplorerComponent',
@@ -20776,6 +20777,12 @@ var ExplorerComponent = React.createClass({
   componentWillMount: function componentWillMount() {
     var setState = this.setState.bind(this);
     var modelInterface = clooca.getModelInterface();
+    modelInterface.on('update', function (e) {
+      var model = e.model.get('contents').first();
+      setState({
+        model: model
+      });
+    });
   },
 
   componentDidMount: function componentDidMount() {},
@@ -20785,18 +20792,21 @@ var ExplorerComponent = React.createClass({
   componentWillUnmount: function componentWillUnmount() {},
 
   render: function render() {
-    var model = clooca.modelInterface.getRawModel().get('contents').first();
+    var content = React.createElement('div', null);
+    if (this.state.model) {
+      content = React.createElement(ExplorerItem, { item: this.state.model });
+    }
     return React.createElement(
       'div',
       null,
-      React.createElement(ExplorerItem, { item: model })
+      content
     );
   }
 });
 
 module.exports = ExplorerComponent;
 
-},{"./item":173,"react":171}],173:[function(require,module,exports){
+},{"../../transformer":176,"./item":173,"react":171}],173:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -20830,20 +20840,6 @@ var ExplorerItem = React.createClass({
     this.setState({
       isOpenCreateModal: true
     });
-    //console.log(model, model.eClass);
-    //model.get("classes").add();
-
-    /*
-    var target = this.props.class;
-    var modelInterface = clooca.getModelInterface();
-    var metamodelInterface = clooca.getMetaModelInterface();
-    metamodelInterface.getInstance(target.type).then(function(metaClass) {
-    var association = Object.keys(metaClass.relations)[0];
-    modelInterface.createInstance(target.id, association, {});
-    }).catch(function(err) {
-    console.error(err.stack);
-    })
-    */
   },
 
   onCloseCreateModal: function onCloseCreateModal() {
@@ -20859,6 +20855,10 @@ var ExplorerItem = React.createClass({
     };
     var item = this.props.item;
     var items = transformer.transformPart(item);
+    /*
+    var ExplorerItems = this.props.item.children.map(function(child) {
+      return (<ExplorerItem key={child.name} depth={offset+12} item={child}></ExplorerItem>)
+    });*/
 
     var ExplorerItems = items.reduce(function (components, children) {
       return components.concat(children.map(function (child) {
@@ -21024,8 +21024,28 @@ ReactDOM.render(mainEl, document.getElementById('main'));
 module.exports = {
 	transform: function transform() {
 		var model = clooca.modelInterface.getRawModel().get('contents').first();
-		return this.transformPart(model);
+		var rootItem = { name: 'root', children: this.transformPart(model) };
+		return rootItem;
 	},
+	/*
+ transformPart: function(model) {
+ 	var containments = model.eClass.get('eAllContainments').map(function(asso) {
+ 	  return asso.get('name');
+ 	}).map(function(name) {
+ 	  return model.get(name);
+ 	});
+ 	return containments.reduce(function(items, children) {
+       return items.concat(children.map(function(child) {
+         return child;
+       }));
+   	}, []).map((item) => {
+   		var children = this.transformPart(item);
+   		return {
+   			name: item.get('name'),
+   			children: children
+   		}
+   	})
+ },*/
 	transformPart: function transformPart(model) {
 		var containments = model.eClass.get('eAllContainments').map(function (asso) {
 			return asso.get('name');
