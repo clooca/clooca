@@ -31,5 +31,9 @@ module.exports = function(parsedArgs) {
 	    process.exit();
 	}
 
+	if(userDir && !settings.userDir) {
+		settings.userDir = userDir;
+	}
+
 	return settings;
 }

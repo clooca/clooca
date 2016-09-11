@@ -1,3 +1,3 @@
 module.exports = {
-	pluginPath: "/Users/syuhei/clooca/clooca/plugins"
+	//pluginPath: "/home/syuhei/.clooca/plugins"
 }

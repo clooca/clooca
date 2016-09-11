@@ -31,7 +31,7 @@ var parsedArgs = nopt(knownOpts,shortHands,process.argv,2)
 var settings = loadSettings(parsedArgs);
 
 //load plugins
-var pluginPath = parsedArgs.plugin || settings.pluginPath || path.join(__dirname, "./plugins");
+var pluginPath = parsedArgs.plugin || settings.pluginPath || path.join(settings.userDir, "./plugins");
 var plugins = loader.load(pluginPath);
 var corePlugins = loader.load(path.resolve(__dirname, './plugins'));
 plugins = plugins.concat(corePlugins);

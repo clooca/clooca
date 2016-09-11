@@ -2,6 +2,13 @@ var fs = require('fs');
 var path = require('path');
 
 function load(pluginPath) {
+	try{
+		fs.mkdirSync(pluginPath);
+	}catch(e) {
+		if(e.code != "EEXIST") {
+			console.error(e);
+		}
+	}
 	var pluginNames = fs.readdirSync(pluginPath);
 	return pluginNames.map((pluginName) => {
 		var modulePath = path.join(pluginPath, pluginName);
