@@ -11,7 +11,7 @@ describe('common/utils/ajax', function() {
 	var ajax = null;
 
 	beforeEach(function() {
-		ModelServer = require(moduleName);
+		ajax = require(moduleName);
 	});
 
 	afterEach(function() {
@@ -20,8 +20,8 @@ describe('common/utils/ajax', function() {
 	});
 
     it('should success to get', function () {
-    	ajax.get().then(function(data) {
-    		assert(data.indexOf('') >= 0)
+    	ajax.get('https://raw.githubusercontent.com/clooca/model-examples/master/examples/classdiagram/model.json', {}, {res:'json'}).then(function(data) {
+    		assert(data.name == 'Book');
     	})
     });
 
