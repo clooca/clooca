@@ -8,10 +8,10 @@ var assert = require('assert');
 describe('common/model', function() {
 
 	var moduleName = '../../../src/common/core/model';
-	var ModelServer = null;
+	var ModelInterface = null;
 
 	beforeEach(function() {
-		ModelServer = require(moduleName);
+		ModelInterface = require(moduleName);
 	});
 
 	afterEach(function() {
@@ -20,8 +20,7 @@ describe('common/model', function() {
 	});
 
     it('should success to get model', function () {
-        var modelServer = new ModelServer();
-        var modelInterface = modelServer.getInterface();
+        var modelInterface = new ModelInterface();
         modelInterface.loadMetaModel( 'classdiagram', require('../../assets/classdiagram/classdiagram.json') ).then(function(content) {
           return modelInterface.loadModel( require('../../assets/classdiagram/bookstore.json') );
         }).then(function(content) {
