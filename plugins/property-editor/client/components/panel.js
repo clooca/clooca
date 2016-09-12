@@ -26,7 +26,7 @@ let Panel = React.createClass({
   	var eStructuralFeatures = this.props.model.eClass.get('eStructuralFeatures');
   	console.log(eStructuralFeatures);
 	var containments = eStructuralFeatures.map((meta) => {
-		return (<FormItem key={'form-'+meta.get('name')} item={this.props.model.get(meta.get('name'))} meta={meta}></FormItem>);
+		return (<FormItem key={'form-'+meta.get('name')} parent={this.props.model} childName={meta.get('name')} meta={meta}></FormItem>);
 	});
 	return containments;
   },

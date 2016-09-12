@@ -20763,6 +20763,7 @@ module.exports = require('./lib/React');
 'use strict';
 
 var React = require('react');
+var ReactDom = require('react-dom');
 var FormItem = require('./form');
 
 var Panel = React.createClass({
@@ -20775,6 +20776,19 @@ var Panel = React.createClass({
 
   componentWillMount: function componentWillMount() {
     var setState = this.setState.bind(this);
+    this.refreshState(this.props);
+  },
+
+  componentWillReceiveProps: function componentWillReceiveProps(nextProps) {
+    this.refreshState(nextProps);
+  },
+
+  refreshState: function refreshState(props) {
+    var value = props.parent.get(props.childName);
+    if (this.refs.input) {
+      var input = ReactDom.findDOMNode(this.refs.input);
+      input.value = value;
+    }
   },
 
   componentDidMount: function componentDidMount() {},
@@ -20783,18 +20797,19 @@ var Panel = React.createClass({
 
   componentWillUnmount: function componentWillUnmount() {},
 
-  updateProperties: function updateProperties() {},
+  updateProperties: function updateProperties(e) {
+    this.props.parent.set(this.props.childName, e.target.value);
+  },
 
   render: function render() {
     var meta = this.props.meta;
-    var item = this.props.item;
-    console.log(item);
+    var item = this.props.parent.get(this.props.childName);
     var label = meta.get('name');
-    var inputElem = React.createElement('input', { type: 'text' });
+    var inputElem = React.createElement('input', { ref: 'input', type: 'text' });
     if (meta.get('eType').get('name') == 'EString') {
-      inputElem = React.createElement('input', { onChange: this.updateProperties, type: 'text', value: item });
+      inputElem = React.createElement('input', { ref: 'input', onChange: this.updateProperties, type: 'text', value: this.state.value });
     } else if (meta.get('eType').get('name') == 'ENumber') {
-      inputElem = React.createElement('input', { type: 'number', value: item });
+      inputElem = React.createElement('input', { ref: 'input', type: 'number', value: this.state.value });
     }
     return React.createElement(
       'div',
@@ -20811,7 +20826,7 @@ var Panel = React.createClass({
 
 module.exports = Panel;
 
-},{"./form":172,"react":171}],173:[function(require,module,exports){
+},{"./form":172,"react":171,"react-dom":28}],173:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -20893,7 +20908,7 @@ var Panel = React.createClass({
     var eStructuralFeatures = this.props.model.eClass.get('eStructuralFeatures');
     console.log(eStructuralFeatures);
     var containments = eStructuralFeatures.map(function (meta) {
-      return React.createElement(FormItem, { key: 'form-' + meta.get('name'), item: _this.props.model.get(meta.get('name')), meta: meta });
+      return React.createElement(FormItem, { key: 'form-' + meta.get('name'), parent: _this.props.model, childName: meta.get('name'), meta: meta });
     });
     return containments;
   },
