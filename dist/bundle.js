@@ -35958,6 +35958,7 @@ module.exports = TabAction;
 
 var ModelInterface = require('../common/core/model');
 var CC = require('../common/core/cc');
+var registry = require('../common/core/registry');
 
 function clooca() {
 	this.registerdPlugins = {};
@@ -35988,13 +35989,13 @@ clooca.prototype.getPluginComponent = function (pluginName) {
 /**
  * @params: type is reactComponent or dom
  */
-clooca.prototype.registerPlugin = function (pluginName, component, type) {
-	this.registerdPlugins[pluginName] = component;
+clooca.prototype.registerPlugin = function (pluginName, pluginModule) {
+	registry.addModule(pluginName, pluginModule);
 };
 
 module.exports = clooca;
 
-},{"../common/core/cc":260,"../common/core/model":261}],248:[function(require,module,exports){
+},{"../common/core/cc":260,"../common/core/model":261,"../common/core/registry":262}],248:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -36558,6 +36559,9 @@ var defaultData = {
 	}, {
 		title: 'Code',
 		plugin: 'code-generator'
+	}, {
+		title: 'Property',
+		plugin: 'property-editor'
 	}]
 };
 

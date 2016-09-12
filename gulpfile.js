@@ -49,6 +49,7 @@ function buildPlugin(name, isWatch) {
 gulp.task('plugins', function () {
   buildPlugin('sample', true);
   buildPlugin('explorer', true);
+  buildPlugin('property-editor', true);
   buildPlugin('diagram-editor', true);
   buildPlugin('code-generator', true);
   buildPlugin('simulator', true);
