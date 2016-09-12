@@ -6,7 +6,7 @@ let ExplorerItem = React.createClass({
 
   getInitialState: function () {
     return {
-
+      hidden: false
     };
   },
 
@@ -41,6 +41,12 @@ let ExplorerItem = React.createClass({
     });
   },
 
+  changeMode: function() {
+    this.setState({
+      hidden: !this.state.hidden
+    });
+  },
+
   select: function() {
     clooca.getCC().request('property', 'selectObject', this.props.item).then(() => {
 
@@ -68,11 +74,11 @@ let ExplorerItem = React.createClass({
     return (
     	<div style={style}>
         <div className="tree-item">
-          <div className="tree-item-head">></div>
+          <div className={this.state.hidden?'tree-item-head tree-item-head-hidden':'tree-item-head tree-item-head-show'} onClick={this.changeMode}></div>
           <div className="tree-item-title" onClick={this.select}>{item.get('name')}</div>
           <div className="tree-item-add" onClick={this.addInstance}>+</div>
         </div>
-	    	<div>{ExplorerItems}</div>
+	    	<div>{(!this.state.hidden)?(ExplorerItems):([])}</div>
         <CreateModal isOpenCreateModal={this.state.isOpenCreateModal} onClose={this.onCloseCreateModal} model={this.props.item}></CreateModal>
     	</div>
     );

@@ -7,10 +7,6 @@
 	background-color: #fff;
 }
 
-.tree-item:hover {
-	background-color: #f0f0f0;
-}
-
 .tree-item:after, .tree-item:before {
     content: "";
     clear: both;
@@ -19,10 +15,32 @@
 
 .tree-item-head {
 	float: left;
+	cursor: pointer;
+	width: 24px;
+	height: 24px;
+}
+
+.tree-item-head:hover {
+	background-color: #aaa;
+}
+
+.tree-item-head-hidden {
+	background-image: 
+		url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 64 64'><polygon fill='#555' points='4,4 60,30 4,60'></polygon></svg>");
+}
+
+.tree-item-head-show {
+	background-image: 
+		url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 64 64'><polygon fill='#555' points='30,60 4,4 60,4'></polygon></svg>");
 }
 
 .tree-item-title {
 	float: left;
+	cursor: pointer;
+}
+
+.tree-item-title:hover {
+	background-color: #f0f0f0;
 }
 
 .tree-item-add {

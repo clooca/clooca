@@ -20818,7 +20818,9 @@ var ExplorerItem = React.createClass({
 
 
   getInitialState: function getInitialState() {
-    return {};
+    return {
+      hidden: false
+    };
   },
 
   componentWillMount: function componentWillMount() {},
@@ -20845,6 +20847,12 @@ var ExplorerItem = React.createClass({
   onCloseCreateModal: function onCloseCreateModal() {
     this.setState({
       isOpenCreateModal: false
+    });
+  },
+
+  changeMode: function changeMode() {
+    this.setState({
+      hidden: !this.state.hidden
     });
   },
 
@@ -20876,11 +20884,7 @@ var ExplorerItem = React.createClass({
       React.createElement(
         'div',
         { className: 'tree-item' },
-        React.createElement(
-          'div',
-          { className: 'tree-item-head' },
-          '>'
-        ),
+        React.createElement('div', { className: this.state.hidden ? 'tree-item-head tree-item-head-hidden' : 'tree-item-head tree-item-head-show', onClick: this.changeMode }),
         React.createElement(
           'div',
           { className: 'tree-item-title', onClick: this.select },
@@ -20895,7 +20899,7 @@ var ExplorerItem = React.createClass({
       React.createElement(
         'div',
         null,
-        ExplorerItems
+        !this.state.hidden ? ExplorerItems : []
       ),
       React.createElement(CreateModal, { isOpenCreateModal: this.state.isOpenCreateModal, onClose: this.onCloseCreateModal, model: this.props.item })
     );
