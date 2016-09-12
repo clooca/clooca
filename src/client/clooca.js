@@ -1,24 +1,17 @@
-var ModelServer = require('../common/core/model');
-var CC = require('./core/cc');
+var ModelInterface = require('../common/core/model');
+var CC = require('../common/core/cc');
+var registry = require('../common/core/registry');
 
 function clooca() {
 	this.registerdPlugins = {};
 
-	var metamodelServer = new ModelServer();
-	this.metamodelInterface = metamodelServer.getInterface();
-
-	var server = new ModelServer(this.metamodelInterface);
-	this.modelInterface = server.getInterface();
+	this.modelInterface = new ModelInterface();
 
 	this.cc = new CC();
 }
 
 clooca.prototype.getModelInterface = function() {
 	return this.modelInterface;
-}
-
-clooca.prototype.getMetaModelInterface = function() {
-	return this.metamodelInterface;
 }
 
 clooca.prototype.hasMethod = function(methodName) {
@@ -40,8 +33,8 @@ clooca.prototype.getPluginComponent = function(pluginName) {
 /**
  * @params: type is reactComponent or dom
  */
-clooca.prototype.registerPlugin = function(pluginName, component, type) {
-	this.registerdPlugins[pluginName] = component;
+clooca.prototype.registerPlugin = function(pluginName, pluginModule) {
+	registry.addModule(pluginName, pluginModule);
 };
 
 module.exports = clooca;

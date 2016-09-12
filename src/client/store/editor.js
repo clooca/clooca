@@ -5,6 +5,9 @@ var defaultData = {
 	},{
 		title: 'Code',
 		plugin: 'code-generator'
+	},{
+		title: 'Property',
+		plugin: 'property-editor'
 	}]
 }
 

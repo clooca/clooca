@@ -35956,27 +35956,20 @@ module.exports = TabAction;
 },{}],247:[function(require,module,exports){
 'use strict';
 
-var ModelServer = require('../common/core/model');
-var CC = require('./core/cc');
+var ModelInterface = require('../common/core/model');
+var CC = require('../common/core/cc');
+var registry = require('../common/core/registry');
 
 function clooca() {
 	this.registerdPlugins = {};
 
-	var metamodelServer = new ModelServer();
-	this.metamodelInterface = metamodelServer.getInterface();
-
-	var server = new ModelServer(this.metamodelInterface);
-	this.modelInterface = server.getInterface();
+	this.modelInterface = new ModelInterface();
 
 	this.cc = new CC();
 }
 
 clooca.prototype.getModelInterface = function () {
 	return this.modelInterface;
-};
-
-clooca.prototype.getMetaModelInterface = function () {
-	return this.metamodelInterface;
 };
 
 clooca.prototype.hasMethod = function (methodName) {
@@ -35996,13 +35989,13 @@ clooca.prototype.getPluginComponent = function (pluginName) {
 /**
  * @params: type is reactComponent or dom
  */
-clooca.prototype.registerPlugin = function (pluginName, component, type) {
-	this.registerdPlugins[pluginName] = component;
+clooca.prototype.registerPlugin = function (pluginName, pluginModule) {
+	registry.addModule(pluginName, pluginModule);
 };
 
 module.exports = clooca;
 
-},{"../common/core/model":262,"./core/cc":256}],248:[function(require,module,exports){
+},{"../common/core/cc":260,"../common/core/model":261,"../common/core/registry":262}],248:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -36171,7 +36164,7 @@ var CoreComponent = React.createClass({
 
 module.exports = CoreComponent;
 
-},{"../../../common/assets/classdiagram/model.json":260,"../../actions/tab":246,"../../store/editor":259,"../plugin/item":253,"../plugin/panel":254,"../tab":255,"./header":248,"react":225,"react-split-pane":71}],250:[function(require,module,exports){
+},{"../../../common/assets/classdiagram/model.json":259,"../../actions/tab":246,"../../store/editor":258,"../plugin/item":253,"../plugin/panel":254,"../tab":255,"./header":248,"react":225,"react-split-pane":71}],250:[function(require,module,exports){
 "use strict";
 
 var React = require('react');
@@ -36500,40 +36493,6 @@ module.exports = TabComponent;
 },{"../plugin/panel":254,"react":225,"react-tabs":82}],256:[function(require,module,exports){
 'use strict';
 
-var ajax = require('../../common/utils/ajax');
-var registry = require('../../common/core/registry');
-
-function MQ() {}
-
-MQ.prototype.emit = function (first_argument) {
-	// body...
-};
-
-MQ.prototype.on = function (first_argument) {
-	// body...
-};
-
-MQ.prototype.request = function (moduleName, methodName, params) {
-	if (registry.getModule(moduleName).hasMethod(methodName)) {
-		return registry.getModule(moduleName).recvRequest(methodName, params);
-	} else {
-		return ajax.get('/cc/' + moduleName + '/' + methodName, params, { res: 'json' }).then(function (data) {
-			return new Promise(function (resolve, reject) {
-				if (data.err) {
-					reject(data.err);
-					return;
-				}
-				resolve(data.content);
-			});
-		});
-	}
-};
-
-module.exports = MQ;
-
-},{"../../common/core/registry":263,"../../common/utils/ajax":264}],257:[function(require,module,exports){
-'use strict';
-
 var React = require('react');
 var ReactDOM = require('react-dom');
 
@@ -36559,7 +36518,7 @@ pluginLoader().then(function (pluginNames) {
 
 registry.addModule('clooca', clooca);
 
-},{"../common/core/registry":263,"./clooca":247,"./components/core":249,"./pluginLoader":258,"react":225,"react-dom":63}],258:[function(require,module,exports){
+},{"../common/core/registry":262,"./clooca":247,"./components/core":249,"./pluginLoader":257,"react":225,"react-dom":63}],257:[function(require,module,exports){
 'use strict';
 
 var ajax = require('../common/utils/ajax');
@@ -36590,7 +36549,7 @@ module.exports = function (cb) {
     });
 };
 
-},{"../common/utils/ajax":264}],259:[function(require,module,exports){
+},{"../common/utils/ajax":263}],258:[function(require,module,exports){
 'use strict';
 
 var defaultData = {
@@ -36600,6 +36559,9 @@ var defaultData = {
 	}, {
 		title: 'Code',
 		plugin: 'code-generator'
+	}, {
+		title: 'Property',
+		plugin: 'property-editor'
 	}]
 };
 
@@ -36624,7 +36586,7 @@ module.exports = {
 	}
 };
 
-},{}],260:[function(require,module,exports){
+},{}],259:[function(require,module,exports){
 module.exports={
   "eClass": "classdiagram#//Class Diagram",
   "name": "Book",
@@ -36663,51 +36625,68 @@ module.exports={
     }
   ]
 }
-},{}],261:[function(require,module,exports){
+},{}],260:[function(require,module,exports){
+(function (process){
 'use strict';
 
+var ajax = require('../utils/ajax');
+var registry = require('./registry');
+
+function MQ() {}
+
+MQ.prototype.emit = function (first_argument) {
+	// body...
+};
+
+MQ.prototype.on = function (first_argument) {
+	// body...
+};
+
+if ('browser' !== process.title) {
+	MQ.prototype.request = function (moduleName, methodName, params) {
+		if (registry.getModule(moduleName).hasMethod(methodName)) {
+			return registry.getModule(moduleName).recvRequest(methodName, params);
+		} else {
+			//TODO
+		}
+	};
+} else {
+	MQ.prototype.request = function (moduleName, methodName, params) {
+		if (registry.getModule(moduleName).hasMethod(methodName)) {
+			return registry.getModule(moduleName).recvRequest(methodName, params);
+		} else {
+			return ajax.get('/cc/' + moduleName + '/' + methodName, params, { res: 'json' }).then(function (data) {
+				return new Promise(function (resolve, reject) {
+					if (data.err) {
+						reject(data.err);
+						return;
+					}
+					resolve(data.content);
+				});
+			});
+		}
+	};
+}
+
+module.exports = MQ;
+
+}).call(this,require('_process'))
+},{"../utils/ajax":263,"./registry":262,"_process":58}],261:[function(require,module,exports){
+'use strict';
+
+var Ecore = require('ecore');
+var uuid = require('uuid');
 var EventEmitter2 = require('eventemitter2').EventEmitter2;
 
-module.exports = function () {
-	var server = new EventEmitter2({
+function ModelInterface(server) {
+	this.resourceSet = Ecore.ResourceSet.create();
+	this.server = new EventEmitter2({
 		wildcard: true,
 		delimiter: '.',
 		newListener: true,
 		maxListeners: 20
 	});
-	return server;
-};
-
-},{"eventemitter2":11}],262:[function(require,module,exports){
-'use strict';
-
-var Ecore = require('ecore');
-var uuid = require('uuid');
-var createServer = require('./cc');
-
-function ModelInterface(server) {
-	this.server = server;
 }
-
-ModelInterface.prototype.getInstance = function (id) {
-	return this.server.query({ id: id });
-};
-
-ModelInterface.prototype.getInstances = function (query) {
-	return this.server.query(query);
-};
-
-ModelInterface.prototype.on = function (event, cb) {
-	this.server.on(event, cb);
-};
-
-ModelInterface.prototype.loadMetaModel = function (uri, data) {
-	return this.server.loadMetaModel(uri, data);
-};
-
-ModelInterface.prototype.loadModel = function (model) {
-	return this.server.loadModel(model);
-};
 
 ModelInterface.prototype.getRawModel = function () {
 	return this.server.model;
@@ -36717,13 +36696,7 @@ ModelInterface.prototype.getRawMetaModel = function () {
 	return this.server.metamodel;
 };
 
-function ModelServer() {
-	var self = this;
-	this.resourceSet = Ecore.ResourceSet.create();
-	this.server = createServer();
-}
-
-ModelServer.prototype.loadMetaModel = function (uri, data) {
+ModelInterface.prototype.loadMetaModel = function (uri, data) {
 	var self = this;
 	return new Promise(function (resolve, reject) {
 		var callback = function callback(model, err) {
@@ -36739,7 +36712,7 @@ ModelServer.prototype.loadMetaModel = function (uri, data) {
 	});
 };
 
-ModelServer.prototype.loadModel = function (model) {
+ModelInterface.prototype.loadModel = function (model) {
 	var self = this;
 	return new Promise(function (resolve, reject) {
 		var callback = function callback(model, err) {
@@ -36755,34 +36728,21 @@ ModelServer.prototype.loadModel = function (model) {
 	});
 };
 
-ModelServer.prototype.emit = function (event, args) {
+ModelInterface.prototype.emit = function (event, args) {
 	this.server.emit(event, args);
 };
 
-ModelServer.prototype.on = function (event, cb) {
+ModelInterface.prototype.on = function (event, cb) {
 	this.server.on(event, cb);
 	this.fireUpdate();
 };
 
-ModelServer.prototype.query = function (query) {
-	var self = this;
-	return new Promise(function (resolve, reject) {
-		if (query.id) {
-			console.log(self.classes, query);
-			resolve(self.classes[query.id]);
-		} else {
-			var targets = Object.keys(self.classes).map(function (_classKey) {
-				return self.classes[_classKey];
-			}).filter(function (_class) {
-				if (query.type) return _class.type == query.type;
-				return false;
-			});
-			resolve(targets);
-		}
-	});
+ModelInterface.prototype.query = function (query) {
+	//TODO: query to model
+	return new Promise(function (resolve, reject) {});
 };
 
-ModelServer.prototype.fireUpdate = function (model) {
+ModelInterface.prototype.fireUpdate = function (model) {
 	if (this.model) {
 		this.server.emit('update', {
 			model: this.model
@@ -36790,13 +36750,9 @@ ModelServer.prototype.fireUpdate = function (model) {
 	}
 };
 
-ModelServer.prototype.getInterface = function () {
-	return new ModelInterface(this);
-};
+module.exports = ModelInterface;
 
-module.exports = ModelServer;
-
-},{"./cc":261,"ecore":9,"uuid":244}],263:[function(require,module,exports){
+},{"ecore":9,"eventemitter2":11,"uuid":244}],262:[function(require,module,exports){
 "use strict";
 
 function addModule(moduleName, moduleObject) {
@@ -36813,7 +36769,7 @@ module.exports = {
 	getModule: getModule
 };
 
-},{}],264:[function(require,module,exports){
+},{}],263:[function(require,module,exports){
 (function (process){
 "use strict";
 
@@ -37005,4 +36961,4 @@ function createCORSRequest(method, url) {
 }
 
 }).call(this,require('_process'))
-},{"_process":58,"http":233,"https":39,"querystring":62,"url":240}]},{},[257]);
+},{"_process":58,"http":233,"https":39,"querystring":62,"url":240}]},{},[256]);

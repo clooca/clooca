@@ -41,6 +41,12 @@ let ExplorerItem = React.createClass({
     });
   },
 
+  select: function() {
+    clooca.getCC().request('property', 'selectObject', this.props.item).then(() => {
+
+    });
+  },
+
   render: function () {
   	var offset = this.props.depth || 0;
   	var style = {
@@ -63,7 +69,7 @@ let ExplorerItem = React.createClass({
     	<div style={style}>
         <div className="tree-item">
           <div className="tree-item-head">></div>
-          <div className="tree-item-title">{item.get('name')}</div>
+          <div className="tree-item-title" onClick={this.select}>{item.get('name')}</div>
           <div className="tree-item-add" onClick={this.addInstance}>+</div>
         </div>
 	    	<div>{ExplorerItems}</div>
