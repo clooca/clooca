@@ -20784,11 +20784,23 @@ var Panel = React.createClass({
   },
 
   refreshState: function refreshState(props) {
-    var value = props.parent.get(props.childName);
-    if (this.refs.input) {
-      var input = ReactDom.findDOMNode(this.refs.input);
-      input.value = value;
+    var meta = props.meta;
+
+    var value = '';
+    if (meta.get('eType').get('name') == 'EString') {
+      value = props.parent.get(props.childName);
+    } else if (meta.get('eType').get('name') == 'ENumber') {
+      value = props.parent.get(props.childName);
+    } else {
+      if (props.parent.get(props.childName)) {
+        value = props.parent.get(props.childName).get('name');
+      } else {
+        value = 'none';
+      }
     }
+    this.setState({
+      value: value
+    });
   },
 
   componentDidMount: function componentDidMount() {},
@@ -20798,18 +20810,48 @@ var Panel = React.createClass({
   componentWillUnmount: function componentWillUnmount() {},
 
   updateProperties: function updateProperties(e) {
+    this.setState({
+      value: e.target.value
+    });
     this.props.parent.set(this.props.childName, e.target.value);
+  },
+
+  updateRelation: function updateRelation(event) {
+    var meta = this.props.meta;
+    var elements = this.props.resourceSet.elements(meta.get('eType').get('name'));
+    var target = elements.filter(function (elem) {
+      return elem.get('name') == event.target.value;
+    })[0];
+    this.setState({
+      value: event.target.value
+    });
+    this.props.parent.set(this.props.childName, target);
   },
 
   render: function render() {
     var meta = this.props.meta;
     var item = this.props.parent.get(this.props.childName);
     var label = meta.get('name');
-    var inputElem = React.createElement('input', { ref: 'input', type: 'text' });
+    var refName = 'input-' + label;
+    var inputElem = React.createElement('div', null);
     if (meta.get('eType').get('name') == 'EString') {
-      inputElem = React.createElement('input', { ref: 'input', onChange: this.updateProperties, type: 'text', value: this.state.value });
+      inputElem = React.createElement('input', { onChange: this.updateProperties, type: 'text', value: this.state.value });
     } else if (meta.get('eType').get('name') == 'ENumber') {
-      inputElem = React.createElement('input', { ref: 'input', type: 'number', value: this.state.value });
+      inputElem = React.createElement('input', { onChange: this.updateProperties, type: 'number', value: this.state.value });
+    } else {
+      var elements = this.props.resourceSet.elements(meta.get('eType').get('name'));
+      var options = elements.map(function (e) {
+        return React.createElement(
+          'option',
+          null,
+          e.get('name')
+        );
+      });
+      inputElem = React.createElement(
+        'select',
+        { onChange: this.updateRelation, value: this.state.value },
+        options
+      );
     }
     return React.createElement(
       'div',
@@ -20846,7 +20888,8 @@ var PropertyEditor = React.createClass({
     modelInterface.on('update', function (e) {
       var model = e.model.get('contents').first();
       setState({
-        model: model
+        model: model,
+        resourceSet: e.model.get('resourceSet')
       });
     });
     this.props.propertyEditor.on('select', function (object) {
@@ -20866,7 +20909,7 @@ var PropertyEditor = React.createClass({
   render: function render() {
     var content = React.createElement('div', null);
     if (this.state.model) {
-      content = React.createElement(Panel, { model: this.state.model });
+      content = React.createElement(Panel, { model: this.state.model, resourceSet: this.state.resourceSet });
     }
     return React.createElement(
       'div',
@@ -20906,9 +20949,10 @@ var Panel = React.createClass({
     var _this = this;
 
     var eStructuralFeatures = this.props.model.eClass.get('eStructuralFeatures');
-    console.log(eStructuralFeatures);
-    var containments = eStructuralFeatures.map(function (meta) {
-      return React.createElement(FormItem, { key: 'form-' + meta.get('name'), parent: _this.props.model, childName: meta.get('name'), meta: meta });
+    var containments = eStructuralFeatures.filter(function (meta) {
+      return !meta.get('containment');
+    }).map(function (meta) {
+      return React.createElement(FormItem, { key: 'form-' + meta.get('name'), resourceSet: _this.props.resourceSet, parent: _this.props.model, childName: meta.get('name'), meta: meta });
     });
     return containments;
   },

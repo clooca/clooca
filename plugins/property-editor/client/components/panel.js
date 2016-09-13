@@ -24,11 +24,12 @@ let Panel = React.createClass({
 
   getStructureFeatures: function() {
   	var eStructuralFeatures = this.props.model.eClass.get('eStructuralFeatures');
-  	console.log(eStructuralFeatures);
-	var containments = eStructuralFeatures.map((meta) => {
-		return (<FormItem key={'form-'+meta.get('name')} parent={this.props.model} childName={meta.get('name')} meta={meta}></FormItem>);
-	});
-	return containments;
+  	var containments = eStructuralFeatures.filter((meta) => {
+      return !meta.get('containment');
+    }).map((meta) => {
+  		return (<FormItem key={'form-'+meta.get('name')} resourceSet={this.props.resourceSet} parent={this.props.model} childName={meta.get('name')} meta={meta}></FormItem>);
+  	});
+  	return containments;
   },
 
   render: function () {

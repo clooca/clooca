@@ -15,7 +15,8 @@ let PropertyEditor = React.createClass({
     modelInterface.on('update', function(e) {
       var model = e.model.get('contents').first();
       setState({
-        model: model
+        model: model,
+        resourceSet: e.model.get('resourceSet')
       });
     });
     this.props.propertyEditor.on('select', function(object) {
@@ -38,7 +39,7 @@ let PropertyEditor = React.createClass({
   render: function () {
     let content = (<div/>);
     if(this.state.model) {
-      content = (<Panel model={this.state.model}></Panel>);
+      content = (<Panel model={this.state.model} resourceSet={this.state.resourceSet}></Panel>);
     }
     return (
       <div>
