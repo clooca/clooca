@@ -1,8 +1,7 @@
 var React = require('react');
 var ReactDom = require('react-dom');
-var FormItem = require('./form');
 
-let Panel = React.createClass({
+let FormList = React.createClass({
 
   getInitialState: function () {
     return {
@@ -12,11 +11,11 @@ let Panel = React.createClass({
 
   componentWillMount: function() {
     var setState = this.setState.bind(this);
-    this.refreshState(this.props);
+    //this.refreshState(this.props);
   },
 
   componentWillReceiveProps: function(nextProps) {
-    this.refreshState(nextProps);
+    //this.refreshState(nextProps);
   },
 
   refreshState: function(props) {
@@ -27,9 +26,20 @@ let Panel = React.createClass({
       value = props.parent.get(props.childName);
     }else if(meta.get('eType').get('name') == 'ENumber') {
       value = props.parent.get(props.childName);
+    }else if(meta.get('eType').get('name') == 'EBoolean') {
+      value = props.parent.get(props.childName);
     }else{
-      if(props.parent.get(props.childName)) {
-        value = props.parent.get(props.childName).get('name');
+      let item = props.parent.get(props.childName);
+      if(item) {
+        if(Array.isArray(item)) {
+          value = item.map((i)=>{
+            return i.get('name');
+          }).join(',');
+        }else if(item.at) {
+        }else{
+          console.log(item);
+          value = item.get('name');
+        }
       }else{
         value = 'none';
       }
@@ -69,25 +79,16 @@ let Panel = React.createClass({
 
   render: function () {
   	let meta = this.props.meta;
-  	let item = this.props.parent.get(this.props.childName);
-  	var label = meta.get('name');
-    var refName = 'input-' + label;
-  	var inputElem = (<div />)
-  	if(meta.get('eType').get('name') == 'EString') {
-  		inputElem = (<input onChange={this.updateProperties} type="text" value={this.state.value}/>);
-  	}else if(meta.get('eType').get('name') == 'ENumber') {
-  		inputElem = (<input onChange={this.updateProperties} type="number" value={this.state.value}/>);
-  	}else{
-      let elements = this.props.resourceSet.elements(meta.get('eType').get('name'));
-      let options = elements.map((e) => {
-        return (<option>{e.get('name')}</option>);
-      });
-      inputElem = (<select onChange={this.updateRelation} value={this.state.value}>{options}</select>);
-    }
+  	let list = this.props.list;
+	let itemComponents = list.map((i)=>{
+	  	console.log(i.get('name'));
+		return (<div>{i.get('name')}</div>);
+	});
+
     return (
-    	<div><span>{label}</span>{inputElem}</div>
+    	<div>{itemComponents}</div>
     );
   }
 });
 
-module.exports = Panel;
+module.exports = FormList;

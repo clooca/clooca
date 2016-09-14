@@ -33,7 +33,12 @@ ModelInterface.prototype.loadMetaModel = function(uri, data) {
 			self.fireUpdate();
 			resolve(model);
 		};
-		self.resourceSet.create({ uri: uri }).load(data, callback);
+		if(uri == 'ecore') {
+			self.resourceSet.create({ uri: uri }).add(Ecore.EcorePackage);
+			resolve(Ecore.EcorePackage);
+		}else{
+			self.resourceSet.create({ uri: uri }).load(data, callback);
+		}
 	})
 }
 

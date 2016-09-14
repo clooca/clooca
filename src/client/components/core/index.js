@@ -29,7 +29,7 @@ let CoreComponent = React.createClass({
     }).then((model) => {
       return modelInterface.loadMetaModel( settings.metaModel.uri, model );
     }).then(function(content) {
-      return modelInterface.loadModel( require('../../../common/assets/classdiagram/model.json') );
+      return modelInterface.loadModel( require('../../../common/assets/classdiagram/metamodel.json') );
     }).then(function(content) {
       console.log(content)
     }).catch(function(err){

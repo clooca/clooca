@@ -1,5 +1,5 @@
 var React = require('react');
-var FormItem = require('./form');
+var FormItem = require('./formItem');
 
 let Panel = React.createClass({
 

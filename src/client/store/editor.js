@@ -1,11 +1,11 @@
 var defaultData = {
-	tabs: [{
+	tabs: [/*{
 		title: 'Diagram Editor',
 		plugin: 'diagram-editor'
 	},{
 		title: 'Code',
 		plugin: 'code-generator'
-	},{
+	},*/{
 		title: 'Property',
 		plugin: 'property-editor'
 	}]

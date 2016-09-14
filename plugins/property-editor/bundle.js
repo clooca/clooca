@@ -20764,10 +20764,10 @@ module.exports = require('./lib/React');
 
 var React = require('react');
 var ReactDom = require('react-dom');
-var FormItem = require('./form');
+var FormList = require('./formList');
 
-var Panel = React.createClass({
-  displayName: 'Panel',
+var FormItem = React.createClass({
+  displayName: 'FormItem',
 
 
   getInitialState: function getInitialState() {
@@ -20791,9 +20791,19 @@ var Panel = React.createClass({
       value = props.parent.get(props.childName);
     } else if (meta.get('eType').get('name') == 'ENumber') {
       value = props.parent.get(props.childName);
+    } else if (meta.get('eType').get('name') == 'EBoolean') {
+      value = props.parent.get(props.childName);
     } else {
-      if (props.parent.get(props.childName)) {
-        value = props.parent.get(props.childName).get('name');
+      var item = props.parent.get(props.childName);
+      if (item) {
+        if (Array.isArray(item)) {
+          value = item.map(function (i) {
+            return i.get('name');
+          }).join(',');
+        } else if (item.at) {} else {
+          console.log(item);
+          value = item.get('name');
+        }
       } else {
         value = 'none';
       }
@@ -20832,43 +20842,152 @@ var Panel = React.createClass({
     var meta = this.props.meta;
     var item = this.props.parent.get(this.props.childName);
     var label = meta.get('name');
-    var refName = 'input-' + label;
     var inputElem = React.createElement('div', null);
-    if (meta.get('eType').get('name') == 'EString') {
-      inputElem = React.createElement('input', { onChange: this.updateProperties, type: 'text', value: this.state.value });
-    } else if (meta.get('eType').get('name') == 'ENumber') {
-      inputElem = React.createElement('input', { onChange: this.updateProperties, type: 'number', value: this.state.value });
-    } else {
-      var elements = this.props.resourceSet.elements(meta.get('eType').get('name'));
-      var options = elements.map(function (e) {
-        return React.createElement(
-          'option',
-          null,
-          e.get('name')
+    if (meta.get('upperBound') == 1) {
+      if (meta.get('eType').get('name') == 'EString') {
+        inputElem = React.createElement('input', { onChange: this.updateProperties, type: 'text', value: this.state.value });
+      } else if (meta.get('eType').get('name') == 'ENumber') {
+        inputElem = React.createElement('input', { onChange: this.updateProperties, type: 'number', value: this.state.value });
+      } else if (meta.get('eType').get('name') == 'EBoolean') {
+        inputElem = React.createElement('input', { onChange: this.updateProperties, type: 'checkbox', checked: this.state.value });
+      } else {
+        var elements = this.props.resourceSet.elements(meta.get('eType').get('name'));
+        var options = elements.map(function (e) {
+          return React.createElement(
+            'option',
+            null,
+            e.get('name')
+          );
+        });
+        inputElem = React.createElement(
+          'select',
+          { onChange: this.updateRelation, value: this.state.value },
+          options
         );
-      });
-      inputElem = React.createElement(
-        'select',
-        { onChange: this.updateRelation, value: this.state.value },
-        options
-      );
+      }
+    } else {
+      inputElem = React.createElement(FormList, { meta: meta, list: item });
     }
     return React.createElement(
       'div',
-      null,
+      { style: { overflow: 'hidden', clear: 'hidden', borderBottom: '1px solid #555' } },
       React.createElement(
         'span',
-        null,
+        { style: { float: 'left', width: '200px' } },
         label
       ),
-      inputElem
+      React.createElement(
+        'div',
+        { style: { float: 'left' } },
+        inputElem
+      )
     );
   }
 });
 
-module.exports = Panel;
+module.exports = FormItem;
 
-},{"./form":172,"react":171,"react-dom":28}],173:[function(require,module,exports){
+},{"./formList":173,"react":171,"react-dom":28}],173:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var ReactDom = require('react-dom');
+
+var FormList = React.createClass({
+  displayName: 'FormList',
+
+
+  getInitialState: function getInitialState() {
+    return {};
+  },
+
+  componentWillMount: function componentWillMount() {
+    var setState = this.setState.bind(this);
+    //this.refreshState(this.props);
+  },
+
+  componentWillReceiveProps: function componentWillReceiveProps(nextProps) {
+    //this.refreshState(nextProps);
+  },
+
+  refreshState: function refreshState(props) {
+    var meta = props.meta;
+
+    var value = '';
+    if (meta.get('eType').get('name') == 'EString') {
+      value = props.parent.get(props.childName);
+    } else if (meta.get('eType').get('name') == 'ENumber') {
+      value = props.parent.get(props.childName);
+    } else if (meta.get('eType').get('name') == 'EBoolean') {
+      value = props.parent.get(props.childName);
+    } else {
+      var item = props.parent.get(props.childName);
+      if (item) {
+        if (Array.isArray(item)) {
+          value = item.map(function (i) {
+            return i.get('name');
+          }).join(',');
+        } else if (item.at) {} else {
+          console.log(item);
+          value = item.get('name');
+        }
+      } else {
+        value = 'none';
+      }
+    }
+    this.setState({
+      value: value
+    });
+  },
+
+  componentDidMount: function componentDidMount() {},
+
+  componentDidUpdate: function componentDidUpdate() {},
+
+  componentWillUnmount: function componentWillUnmount() {},
+
+  updateProperties: function updateProperties(e) {
+    this.setState({
+      value: e.target.value
+    });
+    this.props.parent.set(this.props.childName, e.target.value);
+  },
+
+  updateRelation: function updateRelation(event) {
+    var meta = this.props.meta;
+    var elements = this.props.resourceSet.elements(meta.get('eType').get('name'));
+    var target = elements.filter(function (elem) {
+      return elem.get('name') == event.target.value;
+    })[0];
+    this.setState({
+      value: event.target.value
+    });
+    this.props.parent.set(this.props.childName, target);
+  },
+
+  render: function render() {
+    var meta = this.props.meta;
+    var list = this.props.list;
+    var itemComponents = list.map(function (i) {
+      console.log(i.get('name'));
+      return React.createElement(
+        'div',
+        null,
+        i.get('name')
+      );
+    });
+
+    return React.createElement(
+      'div',
+      null,
+      itemComponents
+    );
+  }
+});
+
+module.exports = FormList;
+
+},{"react":171,"react-dom":28}],174:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -20921,11 +21040,11 @@ var PropertyEditor = React.createClass({
 
 module.exports = PropertyEditor;
 
-},{"./panel":174,"react":171}],174:[function(require,module,exports){
+},{"./panel":175,"react":171}],175:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
-var FormItem = require('./form');
+var FormItem = require('./formItem');
 
 var Panel = React.createClass({
   displayName: 'Panel',
@@ -20968,7 +21087,7 @@ var Panel = React.createClass({
 
 module.exports = Panel;
 
-},{"./form":172,"react":171}],175:[function(require,module,exports){
+},{"./formItem":172,"react":171}],176:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -21007,4 +21126,4 @@ clooca.registerPlugin('property', propertyEditor);
 var mainEl = React.createElement(PropertyEditorComponent, { propertyEditor: propertyEditor });
 ReactDOM.render(mainEl, document.getElementById('main'));
 
-},{"./components":173,"react":171,"react-dom":28}]},{},[175]);
+},{"./components":174,"react":171,"react-dom":28}]},{},[176]);
