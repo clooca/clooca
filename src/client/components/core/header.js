@@ -78,7 +78,7 @@ let Header = React.createClass({
 
   render: function () {
     return (
-    	<div style={{height:"32px", borderBottom:"solid 1px #333", margin: "6px"}}>
+    	<div className="core-header" style={{height:"32px", borderBottom:"solid 1px #333"}}>
     		<div style={{float:"left"}}>
 	    		<div>clooca</div>
     		</div>

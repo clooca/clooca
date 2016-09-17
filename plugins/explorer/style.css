@@ -1,10 +1,9 @@
 .tree-wrapper {
-	background-color: #fff;
-
+	background-color: #171515;
 }
 
 .tree-item {
-	background-color: #fff;
+	background-color: #171515;
 }
 
 .tree-item:after, .tree-item:before {
@@ -35,12 +34,13 @@
 }
 
 .tree-item-title {
+	color: #fff;
 	float: left;
 	cursor: pointer;
 }
 
 .tree-item-title:hover {
-	background-color: #f0f0f0;
+	background-color: #171515;
 }
 
 .tree-item-add {

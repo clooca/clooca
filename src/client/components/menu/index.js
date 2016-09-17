@@ -23,7 +23,7 @@ let Menu = React.createClass({
 
   render: function () {
     return (
-    	<div>
+    	<div className="core-header-menu">
     		<ul style={{"listStyle":"none", "margin":0, "padding":0}}>
         {this.props.children}
     		</ul>

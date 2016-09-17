@@ -3,6 +3,8 @@ html, body{
 	padding: 0;
 	height: 100%;
 	width: 100%;
+    background-color: #171515;
+    color: #fff;
 }
 
 .core-pluginmenu {
@@ -34,6 +36,14 @@ html, body{
 	background-color: #e7fff0;
 }
 
+.core-header {
+    background-color: #272525;
+    padding-top: 6px;
+    padding-right: 6px;
+    padding-bottom: 0px;
+    padding-left: 6px;
+}
+
 /* menu */
 
 .core-header-menu {
@@ -41,11 +51,10 @@ html, body{
 }
 
 .core-header-menuitem {
-    background-color: #fff;
 }
 
 .core-header-menuitem:hover {
-    background-color: #e7e7e7;
+    background-color: #3f3f3f;
 }
 
 /* tab */

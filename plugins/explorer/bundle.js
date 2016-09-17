@@ -20810,7 +20810,7 @@ var ExplorerComponent = React.createClass({
         null,
         React.createElement(
           'a',
-          { style: { cursor: 'pointer' }, onClick: this.addObject },
+          { style: { cursor: 'pointer', color: '#fff' }, onClick: this.addObject },
           '最初のオブジェクトを作成する。'
         )
       );

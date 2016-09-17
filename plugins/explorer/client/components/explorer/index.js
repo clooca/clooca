@@ -45,7 +45,7 @@ let ExplorerComponent = React.createClass({
     if(this.state.model) {
       content = (<ExplorerItem item={this.state.model} resourceSet={this.state.resourceSet}></ExplorerItem>);
     }else{
-      content = (<div><a style={{cursor:'pointer'}} onClick={this.addObject}>最初のオブジェクトを作成する。</a></div>);
+      content = (<div><a style={{cursor:'pointer', color:'#fff'}} onClick={this.addObject}>最初のオブジェクトを作成する。</a></div>);
     }
     return (
       <div>

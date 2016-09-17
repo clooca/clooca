@@ -36118,7 +36118,7 @@ var Header = React.createClass({
   render: function render() {
     return React.createElement(
       'div',
-      { style: { height: "32px", borderBottom: "solid 1px #333", margin: "6px" } },
+      { className: 'core-header', style: { height: "32px", borderBottom: "solid 1px #333" } },
       React.createElement(
         'div',
         { style: { float: "left" } },
@@ -36272,7 +36272,7 @@ var Menu = React.createClass({
   render: function render() {
     return React.createElement(
       "div",
-      null,
+      { className: "core-header-menu" },
       React.createElement(
         "ul",
         { style: { "listStyle": "none", "margin": 0, "padding": 0 } },
