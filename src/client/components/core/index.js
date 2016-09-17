@@ -6,9 +6,11 @@ var PluginPanel = require('../plugin/panel');
 var Header = require('./header');
 var SplitPane = require('react-split-pane');
 var TabAction = require('../../actions/tab');
+var ModalAction = require('../../actions/modal');
 var EditorStore = require('../../store/editor');
 
 TabAction.register(EditorStore);
+ModalAction.register(EditorStore);
 
 let CoreComponent = React.createClass({
 
@@ -22,14 +24,16 @@ let CoreComponent = React.createClass({
   	let setState = this.setState.bind(this);
     let modelInterface = clooca.getModelInterface();
     let cc = clooca.getCC();
-    let settings = null;
-    cc.request('clooca', 'getSettings', {}).then((_settings) => {
-      settings = _settings;
-      return cc.request('clooca', 'findEcoreModel', {url: settings.metaModel.location});
-    }).then((model) => {
-      return modelInterface.loadMetaModel( settings.metaModel.uri, model );
+
+    cc.request('clooca', 'findEcoreModel', {url: clooca.settings.metaModel.location}).then((model) => {
+      return modelInterface.loadMetaModel( clooca.settings.metaModel.uri, model );
     }).then(function(content) {
-      return modelInterface.loadModel( require('../../../common/assets/classdiagram/metamodel.json') );
+      return clooca.getStorage().load('default');
+    }).then(function(modelJson) {
+      if(modelJson)
+        return modelInterface.loadModel(modelJson);
+      else
+        return new Promise((resolve, reject)=>{resolve()});
     }).then(function(content) {
       console.log(content)
     }).catch(function(err){
@@ -67,7 +71,7 @@ let CoreComponent = React.createClass({
 
     return (
     	<div>
-        <Header pluginNames={this.props.pluginNames}></Header>
+        <Header pluginNames={this.props.pluginNames} editorSettings={this.state.editorSettings}></Header>
         <SplitPane split="vertical" minSize={150} defaultSize={200}>
           <div>
             <PluginPanel plugin="explorer"></PluginPanel>

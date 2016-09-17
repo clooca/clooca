@@ -9,12 +9,15 @@ var registry = require('../common/core/registry');
 var clooca = new Clooca();
 window.clooca = clooca;
 
-pluginLoader().then((pluginNames) => {
+registry.addModule('clooca', clooca);
+
+clooca.getCC().request('clooca', 'getSettings', {}).then((_settings) => {
+	clooca.setSettings(_settings);
+	return pluginLoader();
+}).then((pluginNames) => {
 	console.log(pluginNames);
 	var mainEl = (<div><CoreComponent pluginNames={pluginNames}></CoreComponent></div>);
 	ReactDOM.render(mainEl, document.getElementById('main'));
 }).catch((err) => {
-	console.error(err);
+	console.error(err.stack);
 });
-
-registry.addModule('clooca', clooca);

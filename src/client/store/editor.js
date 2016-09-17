@@ -1,4 +1,6 @@
 var defaultData = {
+	isOpenAddObjectModal: false,
+	isOpenAddContainmentModal: false,
 	tabs: [/*{
 		title: 'Diagram Editor',
 		plugin: 'diagram-editor'

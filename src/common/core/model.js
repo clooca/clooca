@@ -13,11 +13,14 @@ function ModelInterface(server) {
 }
 
 ModelInterface.prototype.getRawModel = function() {
-	return this.server.model;
+	if(!this.model) {
+		this.model = this.resourceSet.create({ uri: 'model.json' })
+	}
+	return this.model;
 };
 
 ModelInterface.prototype.getRawMetaModel = function() {
-	return this.server.metamodel;
+	return this.metamodel;
 };
 
 
@@ -34,7 +37,8 @@ ModelInterface.prototype.loadMetaModel = function(uri, data) {
 			resolve(model);
 		};
 		if(uri == 'ecore') {
-			self.resourceSet.create({ uri: uri }).add(Ecore.EcorePackage);
+			self.metamodel = self.resourceSet.create({ uri: uri });
+			self.metamodel.add(Ecore.EcorePackage);
 			resolve(Ecore.EcorePackage);
 		}else{
 			self.resourceSet.create({ uri: uri }).load(data, callback);
@@ -58,6 +62,9 @@ ModelInterface.prototype.loadModel = function(model) {
 	});
 }
 
+ModelInterface.prototype.getModelJSON = function() {
+	return this.model.to(Ecore.JSON);
+}
 
 ModelInterface.prototype.emit = function(event, args) {
 	this.server.emit(event, args);

@@ -55,3 +55,25 @@ plugin.on('highlight', function() {
 ```
 clooca.plugin('diagram').emit('highlight')
 ```
+
+
+# Low Level
+
+## Lifecycle
+
+```
+clooca.on('load')
+```
+
+
+request to module
+
+```
+clooca.getModule('clooca').request()
+```
+
+receive event from module
+
+```
+clooca.getModule('modelexplorer').on('selected')
+```

@@ -15,8 +15,10 @@ let ExplorerComponent = React.createClass({
     var modelInterface = clooca.getModelInterface();
     modelInterface.on('update', function(e) {
       var model = e.model.get('contents').first();
+      var resourceSet = e.model.get('resourceSet');
       setState({
-        model: model
+        model: model,
+        resourceSet: resourceSet
       });
     });
   },
@@ -30,10 +32,20 @@ let ExplorerComponent = React.createClass({
   componentWillUnmount: function() {
   },
 
+  addObject: function() {
+    let cc = clooca.getCC();
+    cc.request('clooca', 'modal', {
+      isOpenAddObjectModal: true
+    }).then((_settings) => {
+    });
+  },
+
   render: function () {
     let content = (<div/>);
     if(this.state.model) {
-      content = (<ExplorerItem item={this.state.model}></ExplorerItem>);
+      content = (<ExplorerItem item={this.state.model} resourceSet={this.state.resourceSet}></ExplorerItem>);
+    }else{
+      content = (<div><a style={{cursor:'pointer'}} onClick={this.addObject}>最初のオブジェクトを作成する。</a></div>);
     }
     return (
       <div>

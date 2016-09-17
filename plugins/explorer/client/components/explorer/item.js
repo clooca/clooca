@@ -1,6 +1,5 @@
 var React = require('react');
 var transformer = require('../../transformer');
-var CreateModal = require('../modal/create');
 
 let ExplorerItem = React.createClass({
 
@@ -30,14 +29,12 @@ let ExplorerItem = React.createClass({
   },
 
   addInstance: function() {
-    this.setState({
-      isOpenCreateModal: true
-    });
-  },
-
-  onCloseCreateModal: function(){
-    this.setState({
-      isOpenCreateModal: false
+    let cc = clooca.getCC();
+    cc.request('clooca', 'modal', {
+      isOpenAddContainmentModal: true,
+      model: this.props.item,
+      resourceSet: this.props.resourceSet
+    }).then((_settings) => {
     });
   },
 
@@ -54,6 +51,7 @@ let ExplorerItem = React.createClass({
   },
 
   render: function () {
+    let resourceSet = this.props.resourceSet;
   	var offset = this.props.depth || 0;
   	var style = {
   		"marginLeft": offset+"px"
@@ -67,7 +65,7 @@ let ExplorerItem = React.createClass({
 
   	var ExplorerItems = items.reduce(function(components, children) {
       return components.concat(children.map(function(child) {
-        return (<ExplorerItem key={child.get('name')} depth={offset+12} item={child}></ExplorerItem>)
+        return (<ExplorerItem key={child.get('name')} depth={offset+12} item={child} resourceSet={resourceSet}></ExplorerItem>)
       }))
   	}, []);
 
@@ -79,7 +77,6 @@ let ExplorerItem = React.createClass({
           <div className="tree-item-add" onClick={this.addInstance}>+</div>
         </div>
 	    	<div>{(!this.state.hidden)?(ExplorerItems):([])}</div>
-        <CreateModal isOpenCreateModal={this.state.isOpenCreateModal} onClose={this.onCloseCreateModal} model={this.props.item}></CreateModal>
     	</div>
     );
   }

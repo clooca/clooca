@@ -17,8 +17,8 @@ var CreateModal = React.createClass({
 
   getInitialState: function() {
     return {
-    	containmentNames: [],
-    	modalIsOpen: false
+    	eClassNames: [],
+    	isOpen: false
     };
   },
 
@@ -32,37 +32,43 @@ var CreateModal = React.createClass({
   },
 
   okModal: function() {
-    var model = this.props.model;
-  	var association = this.refs.association.value;
+    var metamodel = clooca.getModelInterface().getRawMetaModel();
+    var model = clooca.getModelInterface().getRawModel();
   	var name = this.refs.name.value;
-  	model.get(association).add(model.eClass.create({name:name}));
+    var eClassName = this.refs.eClass.value;
+    var eClass = metamodel.get('resourceSet').elements('EClass').filter((_eclass) => {
+      return _eclass.get('name') == eClassName;
+    })[0];
+
+    model.get('contents').add(eClass.create({name:name}));
+    clooca.getModelInterface().fireUpdate()
   	this.props.onClose();
   },
 
   componentWillReceiveProps: function() {
-	var model = this.props.model;
-	var containmentNames = model.eClass.get('eAllContainments').map(function(asso) {
-		return asso.get('name');
-	});
-	this.setState({
-		containmentNames: containmentNames
-	});
+  	var metamodel = clooca.getModelInterface().getRawMetaModel();
+    var eClassNames = metamodel.get('resourceSet').elements('EClass').map((_eclass) => {
+      return _eclass.get('name');
+    });
+  	this.setState({
+  		eClassNames: eClassNames
+  	});
   },
 
   render: function() {
-  	var options = this.state.containmentNames.map(function(name) {
-  		return (<option key={'createmodal-'+name}>{name}</option>);
-  	});
+    var options = this.state.eClassNames.map((eClassName) => {
+      return (<option>{eClassName}</option>);
+    });
     return (
       <div>
         <Modal
-          isOpen={this.props.isOpenCreateModal}
+          isOpen={this.props.isOpen}
           onAfterOpen={this.afterOpenModal}
           onRequestClose={this.closeModal}
           style={customStyles} >
 
           <h2 ref="subtitle">インスタンス作成</h2>
-          <select ref="association">{options}</select>
+          <select ref="eClass">{options}</select>
           <input ref="name" type="text" />
           <button onClick={this.okModal}>OK</button>
           <button onClick={this.closeModal}>Cancel</button>

@@ -35942,6 +35942,31 @@ function extend() {
 "use strict";
 
 var TabAction = {
+	open: function open(params) {
+		this.store.update({
+			isOpenAddContainmentModal: params.isOpenAddContainmentModal,
+			isOpenAddObjectModal: params.isOpenAddObjectModal,
+			target: params.model,
+			resourceSet: params.resourceSet
+		});
+	},
+	close: function close(params) {
+		this.store.update({
+			isOpenAddContainmentModal: false,
+			isOpenAddObjectModal: false
+		});
+	},
+	register: function register(store) {
+		this.store = store;
+	}
+};
+
+module.exports = TabAction;
+
+},{}],247:[function(require,module,exports){
+"use strict";
+
+var TabAction = {
 	add: function add(newTab) {
 		var tabs = this.store.get().tabs;
 		this.store.update({ tabs: tabs.concat([newTab]) });
@@ -35953,12 +35978,14 @@ var TabAction = {
 
 module.exports = TabAction;
 
-},{}],247:[function(require,module,exports){
+},{}],248:[function(require,module,exports){
 'use strict';
 
 var ModelInterface = require('../common/core/model');
 var CC = require('../common/core/cc');
 var registry = require('../common/core/registry');
+var ModalAction = require('./actions/modal');
+var LocalStorage = require('../common/storage/localStorage');
 
 function clooca() {
 	this.registerdPlugins = {};
@@ -35972,14 +35999,31 @@ clooca.prototype.getModelInterface = function () {
 	return this.modelInterface;
 };
 
-clooca.prototype.hasMethod = function (methodName) {
-	return false;
+clooca.prototype.setSettings = function (settings) {
+	this.settings = settings;
 };
 
-clooca.prototype.recvRequest = function (methodName) {};
+clooca.prototype.hasMethod = function (methodName) {
+	return methodName == 'modal';
+};
+
+clooca.prototype.recvRequest = function (methodName, params) {
+	return this[methodName](params);
+};
+
+clooca.prototype.modal = function (params) {
+	ModalAction.open(params);
+	return new Promise(function (resolve, reject) {
+		resolve(true);
+	});
+};
 
 clooca.prototype.getCC = function () {
 	return this.cc;
+};
+
+clooca.prototype.getStorage = function () {
+	return LocalStorage(this.settings);
 };
 
 clooca.prototype.getPluginComponent = function (pluginName) {
@@ -35995,14 +36039,17 @@ clooca.prototype.registerPlugin = function (pluginName, pluginModule) {
 
 module.exports = clooca;
 
-},{"../common/core/cc":260,"../common/core/model":261,"../common/core/registry":262}],248:[function(require,module,exports){
+},{"../common/core/cc":262,"../common/core/model":263,"../common/core/registry":264,"../common/storage/localStorage":265,"./actions/modal":246}],249:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
 var Menu = require('../menu');
 var MenuItem = require('../menu/item');
 var AddTabModal = require('../modal/addTab');
+var AddObjectModal = require('../modal/addObject');
+var AddContainmentModal = require('../modal/addContainment');
 var TabAction = require('../../actions/tab');
+var ModalAction = require('../../actions/modal');
 
 var Header = React.createClass({
   displayName: 'Header',
@@ -36010,7 +36057,9 @@ var Header = React.createClass({
 
   getInitialState: function getInitialState() {
     return {
-      isOpenAddTabModal: false
+      isOpenAddTabModal: false,
+      isOpenAddObjectModal: this.props.editorSettings.isOpenAddObjectModal,
+      isOpenAddContainmentModal: this.props.editorSettings.isOpenAddContainmentModal
     };
   },
 
@@ -36024,6 +36073,12 @@ var Header = React.createClass({
 
   componentWillUnmount: function componentWillUnmount() {},
 
+  componentWillReceiveProps: function componentWillReceiveProps(nextProps) {
+    this.setState({
+      isOpenAddContainmentModal: nextProps.editorSettings.isOpenAddContainmentModal
+    });
+  },
+
   addTab: function addTab(newTab) {
     TabAction.add(newTab);
   },
@@ -36034,10 +36089,30 @@ var Header = React.createClass({
     });
   },
 
+  onAddObjectMenuSelected: function onAddObjectMenuSelected() {
+    var cc = clooca.getCC();
+    cc.request('clooca', 'modal', {
+      isOpenAddObjectModal: true
+    }).then(function () {});
+  },
+
+  onSaveMenuSelected: function onSaveMenuSelected() {
+    var modelJson = clooca.getModelInterface().getModelJSON();
+    clooca.getStorage().save('default', modelJson).then(function () {});
+  },
+
   onCloseAddTabModal: function onCloseAddTabModal() {
     this.setState({
       isOpenAddTabModal: false
     });
+  },
+
+  onCloseAddObjectModal: function onCloseAddObjectModal() {
+    ModalAction.close();
+  },
+
+  onCloseAddContainmentModal: function onCloseAddContainmentModal() {
+    ModalAction.close();
   },
 
   render: function render() {
@@ -36059,18 +36134,22 @@ var Header = React.createClass({
         React.createElement(
           Menu,
           null,
-          React.createElement(MenuItem, { title: 'タブを追加', onSelect: this.onAddTabMenuSelected })
+          React.createElement(MenuItem, { title: 'オブジェクトを追加', onSelect: this.onAddObjectMenuSelected }),
+          React.createElement(MenuItem, { title: 'タブを追加', onSelect: this.onAddTabMenuSelected }),
+          React.createElement(MenuItem, { title: 'モデルを保存', onSelect: this.onSaveMenuSelected })
         )
       ),
       React.createElement('div', { style: { overflow: 'hidden', clear: 'both' } }),
-      React.createElement(AddTabModal, { isOpen: this.state.isOpenAddTabModal, onOk: this.addTab, onClose: this.onCloseAddTabModal, pluginNames: this.props.pluginNames })
+      React.createElement(AddTabModal, { isOpen: this.state.isOpenAddTabModal, onOk: this.addTab, onClose: this.onCloseAddTabModal, pluginNames: this.props.pluginNames }),
+      React.createElement(AddObjectModal, { isOpen: this.props.editorSettings.isOpenAddObjectModal, onClose: this.onCloseAddObjectModal }),
+      React.createElement(AddContainmentModal, { isOpen: this.props.editorSettings.isOpenAddContainmentModal, onClose: this.onCloseAddContainmentModal, model: this.props.editorSettings.target, resourceSet: this.props.editorSettings.resourceSet })
     );
   }
 });
 
 module.exports = Header;
 
-},{"../../actions/tab":246,"../menu":250,"../menu/item":251,"../modal/addTab":252,"react":225}],249:[function(require,module,exports){
+},{"../../actions/modal":246,"../../actions/tab":247,"../menu":251,"../menu/item":252,"../modal/addContainment":253,"../modal/addObject":254,"../modal/addTab":255,"react":225}],250:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -36081,9 +36160,11 @@ var PluginPanel = require('../plugin/panel');
 var Header = require('./header');
 var SplitPane = require('react-split-pane');
 var TabAction = require('../../actions/tab');
+var ModalAction = require('../../actions/modal');
 var EditorStore = require('../../store/editor');
 
 TabAction.register(EditorStore);
+ModalAction.register(EditorStore);
 
 var CoreComponent = React.createClass({
   displayName: 'CoreComponent',
@@ -36099,14 +36180,15 @@ var CoreComponent = React.createClass({
     var setState = this.setState.bind(this);
     var modelInterface = clooca.getModelInterface();
     var cc = clooca.getCC();
-    var settings = null;
-    cc.request('clooca', 'getSettings', {}).then(function (_settings) {
-      settings = _settings;
-      return cc.request('clooca', 'findEcoreModel', { url: settings.metaModel.location });
-    }).then(function (model) {
-      return modelInterface.loadMetaModel(settings.metaModel.uri, model);
+
+    cc.request('clooca', 'findEcoreModel', { url: clooca.settings.metaModel.location }).then(function (model) {
+      return modelInterface.loadMetaModel(clooca.settings.metaModel.uri, model);
     }).then(function (content) {
-      return modelInterface.loadModel(require('../../../common/assets/classdiagram/model.json'));
+      return clooca.getStorage().load('default');
+    }).then(function (modelJson) {
+      if (modelJson) return modelInterface.loadModel(modelJson);else return new Promise(function (resolve, reject) {
+        resolve();
+      });
     }).then(function (content) {
       console.log(content);
     }).catch(function (err) {
@@ -36142,7 +36224,7 @@ var CoreComponent = React.createClass({
     return React.createElement(
       'div',
       null,
-      React.createElement(Header, { pluginNames: this.props.pluginNames }),
+      React.createElement(Header, { pluginNames: this.props.pluginNames, editorSettings: this.state.editorSettings }),
       React.createElement(
         SplitPane,
         { split: 'vertical', minSize: 150, defaultSize: 200 },
@@ -36164,7 +36246,7 @@ var CoreComponent = React.createClass({
 
 module.exports = CoreComponent;
 
-},{"../../../common/assets/classdiagram/model.json":259,"../../actions/tab":246,"../../store/editor":258,"../plugin/item":253,"../plugin/panel":254,"../tab":255,"./header":248,"react":225,"react-split-pane":71}],250:[function(require,module,exports){
+},{"../../actions/modal":246,"../../actions/tab":247,"../../store/editor":261,"../plugin/item":256,"../plugin/panel":257,"../tab":258,"./header":249,"react":225,"react-split-pane":71}],251:[function(require,module,exports){
 "use strict";
 
 var React = require('react');
@@ -36203,7 +36285,7 @@ var Menu = React.createClass({
 
 module.exports = Menu;
 
-},{"react":225}],251:[function(require,module,exports){
+},{"react":225}],252:[function(require,module,exports){
 "use strict";
 
 var React = require('react');
@@ -36237,7 +36319,271 @@ var MenuItem = React.createClass({
 
 module.exports = MenuItem;
 
-},{"react":225}],252:[function(require,module,exports){
+},{"react":225}],253:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var Modal = require('react-modal');
+
+var customStyles = {
+  content: {
+    top: '50%',
+    left: '50%',
+    right: 'auto',
+    bottom: 'auto',
+    marginRight: '-50%',
+    transform: 'translate(-50%, -50%)'
+  }
+};
+
+var CreateModal = React.createClass({
+  displayName: 'CreateModal',
+
+
+  getInitialState: function getInitialState() {
+    return {
+      containments: [],
+      selectedContainment: null,
+      modalIsOpen: false
+    };
+  },
+
+  afterOpenModal: function afterOpenModal() {
+    // references are now sync'd and can be accessed.
+    this.refs.subtitle.style.color = '#f00';
+  },
+
+  closeModal: function closeModal() {
+    this.props.onClose();
+  },
+
+  okModal: function okModal() {
+    var model = this.props.model;
+    var resourceSet = this.props.resourceSet;
+    var association = this.refs.association.value;
+    var eclass = this.refs.eclass.value;
+    var name = this.refs.name.value;
+    var eClass = resourceSet.elements('EClass').filter(function (eClass) {
+      return eClass.get('name') == eclass;
+    })[0];
+    model.get(association).add(eClass.create({ name: name }));
+    this.props.onClose();
+  },
+
+  componentWillReceiveProps: function componentWillReceiveProps(nextProps) {
+    //eClass assoname
+    var model = nextProps.model;
+    if (!model) return;
+    var resourceSet = nextProps.resourceSet;
+    var containments = model.eClass.get('eAllContainments').map(function (asso) {
+      var eType = asso.get('eType');
+      if (eType.get('abstract') || eType.get('interface')) {
+        var superTypes = resourceSet.elements('EClass').filter(function (eClass) {
+          return eClass.get('eSuperTypes').filter(function (eSuperType) {
+            return eType.get('name') == eSuperType.get('name');
+          }).length > 0;
+        });
+        var superTypeNames = superTypes.map(function (superType) {
+          return superType.get('name');
+        });
+        return {
+          name: asso.get('name'),
+          eTypes: superTypeNames
+        };
+      } else {
+        return {
+          name: asso.get('name'),
+          eTypes: [eType.get('name')]
+        };
+      }
+    });
+    this.setState({
+      containments: containments,
+      selectedContainment: containments[0].name
+    });
+  },
+
+  onAssociationChange: function onAssociationChange() {
+    var association = this.refs.association.value;
+    var selectedContainment = association;
+    this.setState({
+      selectedContainment: selectedContainment
+    });
+  },
+
+  render: function render() {
+    var _this = this;
+
+    console.log(this.state);
+    var options = this.state.containments.map(function (containment) {
+      return React.createElement(
+        'option',
+        { key: 'createmodal-' + containment.name },
+        containment.name
+      );
+    });
+    var containment = this.state.containments.filter(function (containment) {
+      return containment.name == _this.state.selectedContainment;
+    })[0];
+    var options2 = containment ? containment.eTypes.map(function (eTypeName) {
+      return React.createElement(
+        'option',
+        { key: 'createmodal-' + eTypeName },
+        eTypeName
+      );
+    }) : React.createElement('div', null);
+
+    return React.createElement(
+      'div',
+      null,
+      React.createElement(
+        Modal,
+        {
+          isOpen: this.props.isOpen,
+          onAfterOpen: this.afterOpenModal,
+          onRequestClose: this.closeModal,
+          style: customStyles },
+        React.createElement(
+          'h2',
+          { ref: 'subtitle' },
+          'インスタンス作成'
+        ),
+        React.createElement(
+          'select',
+          { ref: 'association', onChange: this.onAssociationChange },
+          options
+        ),
+        React.createElement(
+          'select',
+          { ref: 'eclass', onChange: this.onAssociationChange },
+          options2
+        ),
+        React.createElement('input', { ref: 'name', type: 'text' }),
+        React.createElement(
+          'button',
+          { onClick: this.okModal },
+          'OK'
+        ),
+        React.createElement(
+          'button',
+          { onClick: this.closeModal },
+          'Cancel'
+        )
+      )
+    );
+  }
+});
+
+module.exports = CreateModal;
+
+},{"react":225,"react-modal":70}],254:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var Modal = require('react-modal');
+
+var customStyles = {
+  content: {
+    top: '50%',
+    left: '50%',
+    right: 'auto',
+    bottom: 'auto',
+    marginRight: '-50%',
+    transform: 'translate(-50%, -50%)'
+  }
+};
+
+var CreateModal = React.createClass({
+  displayName: 'CreateModal',
+
+
+  getInitialState: function getInitialState() {
+    return {
+      eClassNames: [],
+      isOpen: false
+    };
+  },
+
+  afterOpenModal: function afterOpenModal() {
+    // references are now sync'd and can be accessed.
+    this.refs.subtitle.style.color = '#f00';
+  },
+
+  closeModal: function closeModal() {
+    this.props.onClose();
+  },
+
+  okModal: function okModal() {
+    var metamodel = clooca.getModelInterface().getRawMetaModel();
+    var model = clooca.getModelInterface().getRawModel();
+    var name = this.refs.name.value;
+    var eClassName = this.refs.eClass.value;
+    var eClass = metamodel.get('resourceSet').elements('EClass').filter(function (_eclass) {
+      return _eclass.get('name') == eClassName;
+    })[0];
+
+    model.get('contents').add(eClass.create({ name: name }));
+    clooca.getModelInterface().fireUpdate();
+    this.props.onClose();
+  },
+
+  componentWillReceiveProps: function componentWillReceiveProps() {
+    var metamodel = clooca.getModelInterface().getRawMetaModel();
+    var eClassNames = metamodel.get('resourceSet').elements('EClass').map(function (_eclass) {
+      return _eclass.get('name');
+    });
+    this.setState({
+      eClassNames: eClassNames
+    });
+  },
+
+  render: function render() {
+    var options = this.state.eClassNames.map(function (eClassName) {
+      return React.createElement(
+        'option',
+        null,
+        eClassName
+      );
+    });
+    return React.createElement(
+      'div',
+      null,
+      React.createElement(
+        Modal,
+        {
+          isOpen: this.props.isOpen,
+          onAfterOpen: this.afterOpenModal,
+          onRequestClose: this.closeModal,
+          style: customStyles },
+        React.createElement(
+          'h2',
+          { ref: 'subtitle' },
+          'インスタンス作成'
+        ),
+        React.createElement(
+          'select',
+          { ref: 'eClass' },
+          options
+        ),
+        React.createElement('input', { ref: 'name', type: 'text' }),
+        React.createElement(
+          'button',
+          { onClick: this.okModal },
+          'OK'
+        ),
+        React.createElement(
+          'button',
+          { onClick: this.closeModal },
+          'Cancel'
+        )
+      )
+    );
+  }
+});
+
+module.exports = CreateModal;
+
+},{"react":225,"react-modal":70}],255:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -36328,7 +36674,7 @@ var AddTabModal = React.createClass({
 
 module.exports = AddTabModal;
 
-},{"react":225,"react-modal":70}],253:[function(require,module,exports){
+},{"react":225,"react-modal":70}],256:[function(require,module,exports){
 "use strict";
 
 var React = require('react');
@@ -36366,7 +36712,7 @@ var PluginItem = React.createClass({
 
 module.exports = PluginItem;
 
-},{"react":225}],254:[function(require,module,exports){
+},{"react":225}],257:[function(require,module,exports){
 "use strict";
 
 var React = require('react');
@@ -36398,7 +36744,7 @@ var Panel = React.createClass({
 
 module.exports = Panel;
 
-},{"react":225}],255:[function(require,module,exports){
+},{"react":225}],258:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -36490,7 +36836,7 @@ var TabComponent = React.createClass({
 
 module.exports = TabComponent;
 
-},{"../plugin/panel":254,"react":225,"react-tabs":82}],256:[function(require,module,exports){
+},{"../plugin/panel":257,"react":225,"react-tabs":82}],259:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -36504,7 +36850,12 @@ var registry = require('../common/core/registry');
 var clooca = new Clooca();
 window.clooca = clooca;
 
-pluginLoader().then(function (pluginNames) {
+registry.addModule('clooca', clooca);
+
+clooca.getCC().request('clooca', 'getSettings', {}).then(function (_settings) {
+	clooca.setSettings(_settings);
+	return pluginLoader();
+}).then(function (pluginNames) {
 	console.log(pluginNames);
 	var mainEl = React.createElement(
 		'div',
@@ -36513,12 +36864,10 @@ pluginLoader().then(function (pluginNames) {
 	);
 	ReactDOM.render(mainEl, document.getElementById('main'));
 }).catch(function (err) {
-	console.error(err);
+	console.error(err.stack);
 });
 
-registry.addModule('clooca', clooca);
-
-},{"../common/core/registry":262,"./clooca":247,"./components/core":249,"./pluginLoader":257,"react":225,"react-dom":63}],257:[function(require,module,exports){
+},{"../common/core/registry":264,"./clooca":248,"./components/core":250,"./pluginLoader":260,"react":225,"react-dom":63}],260:[function(require,module,exports){
 'use strict';
 
 var ajax = require('../common/utils/ajax');
@@ -36549,17 +36898,19 @@ module.exports = function (cb) {
     });
 };
 
-},{"../common/utils/ajax":263}],258:[function(require,module,exports){
+},{"../common/utils/ajax":266}],261:[function(require,module,exports){
 'use strict';
 
 var defaultData = {
-	tabs: [{
-		title: 'Diagram Editor',
-		plugin: 'diagram-editor'
-	}, {
-		title: 'Code',
-		plugin: 'code-generator'
-	}, {
+	isOpenAddObjectModal: false,
+	isOpenAddContainmentModal: false,
+	tabs: [/*{
+        title: 'Diagram Editor',
+        plugin: 'diagram-editor'
+        },{
+        title: 'Code',
+        plugin: 'code-generator'
+        },*/{
 		title: 'Property',
 		plugin: 'property-editor'
 	}]
@@ -36586,46 +36937,7 @@ module.exports = {
 	}
 };
 
-},{}],259:[function(require,module,exports){
-module.exports={
-  "eClass": "classdiagram#//Class Diagram",
-  "name": "Book",
-  "classes": [
-    {
-      "eClass": "classdiagram#//Class",
-      "name": "Author",
-      "associations": [
-        {
-          "eClass": "classdiagram#//Association",
-          "name": "hasBook",
-          "target": {
-            "$ref": "//@classes.1",
-            "eClass": "classdiagram#//Class"
-          }
-        }
-      ]
-    },
-    {
-      "eClass": "classdiagram#//Class",
-      "name": "Book",
-      "associations": [
-        {
-          "eClass": "classdiagram#//Association",
-          "name": "hasOrder",
-          "target": {
-            "$ref": "//@classes.2",
-            "eClass": "classdiagram#//Class"
-          }
-        }
-      ]
-    },
-    {
-      "eClass": "classdiagram#//Class",
-      "name": "Order"
-    }
-  ]
-}
-},{}],260:[function(require,module,exports){
+},{}],262:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -36671,7 +36983,7 @@ if ('browser' !== process.title) {
 module.exports = MQ;
 
 }).call(this,require('_process'))
-},{"../utils/ajax":263,"./registry":262,"_process":58}],261:[function(require,module,exports){
+},{"../utils/ajax":266,"./registry":264,"_process":58}],263:[function(require,module,exports){
 'use strict';
 
 var Ecore = require('ecore');
@@ -36689,11 +37001,14 @@ function ModelInterface(server) {
 }
 
 ModelInterface.prototype.getRawModel = function () {
-	return this.server.model;
+	if (!this.model) {
+		this.model = this.resourceSet.create({ uri: 'model.json' });
+	}
+	return this.model;
 };
 
 ModelInterface.prototype.getRawMetaModel = function () {
-	return this.server.metamodel;
+	return this.metamodel;
 };
 
 ModelInterface.prototype.loadMetaModel = function (uri, data) {
@@ -36708,7 +37023,13 @@ ModelInterface.prototype.loadMetaModel = function (uri, data) {
 			self.fireUpdate();
 			resolve(model);
 		};
-		self.resourceSet.create({ uri: uri }).load(data, callback);
+		if (uri == 'ecore') {
+			self.metamodel = self.resourceSet.create({ uri: uri });
+			self.metamodel.add(Ecore.EcorePackage);
+			resolve(Ecore.EcorePackage);
+		} else {
+			self.resourceSet.create({ uri: uri }).load(data, callback);
+		}
 	});
 };
 
@@ -36726,6 +37047,10 @@ ModelInterface.prototype.loadModel = function (model) {
 		};
 		self.resourceSet.create({ uri: 'model.json' }).load(model, callback);
 	});
+};
+
+ModelInterface.prototype.getModelJSON = function () {
+	return this.model.to(Ecore.JSON);
 };
 
 ModelInterface.prototype.emit = function (event, args) {
@@ -36752,7 +37077,7 @@ ModelInterface.prototype.fireUpdate = function (model) {
 
 module.exports = ModelInterface;
 
-},{"ecore":9,"eventemitter2":11,"uuid":244}],262:[function(require,module,exports){
+},{"ecore":9,"eventemitter2":11,"uuid":244}],264:[function(require,module,exports){
 "use strict";
 
 function addModule(moduleName, moduleObject) {
@@ -36769,7 +37094,29 @@ module.exports = {
 	getModule: getModule
 };
 
-},{}],263:[function(require,module,exports){
+},{}],265:[function(require,module,exports){
+'use strict';
+
+var prefix = 'cl-';
+
+module.exports = function (settings) {
+	return {
+		save: function save(modelId, content) {
+			return new Promise(function (resolve, reject) {
+				var result = window.localStorage.setItem(prefix + modelId, JSON.stringify(content));
+				resolve(result);
+			});
+		},
+		load: function load(modelId) {
+			return new Promise(function (resolve, reject) {
+				var result = window.localStorage.getItem(prefix + modelId);
+				resolve(JSON.parse(result));
+			});
+		}
+	};
+};
+
+},{}],266:[function(require,module,exports){
 (function (process){
 "use strict";
 
@@ -36961,4 +37308,4 @@ function createCORSRequest(method, url) {
 }
 
 }).call(this,require('_process'))
-},{"_process":58,"http":233,"https":39,"querystring":62,"url":240}]},{},[256]);
+},{"_process":58,"http":233,"https":39,"querystring":62,"url":240}]},{},[259]);
