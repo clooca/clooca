@@ -1,15 +1,15 @@
 var defaultData = {
 	isOpenAddObjectModal: false,
 	isOpenAddContainmentModal: false,
-	tabs: [/*{
+	tabs: [{
+		title: 'Property',
+		plugin: 'property-editor'
+	},{
 		title: 'Diagram Editor',
 		plugin: 'diagram-editor'
 	},{
 		title: 'Code',
 		plugin: 'code-generator'
-	},*/{
-		title: 'Property',
-		plugin: 'property-editor'
 	}]
 }
 

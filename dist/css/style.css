@@ -34,6 +34,19 @@ html, body{
 	background-color: #e7fff0;
 }
 
+/* menu */
+
+.core-header-menu {
+
+}
+
+.core-header-menuitem {
+    background-color: #fff;
+}
+
+.core-header-menuitem:hover {
+    background-color: #e7e7e7;
+}
 
 /* tab */
 

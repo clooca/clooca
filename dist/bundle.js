@@ -36311,7 +36311,7 @@ var MenuItem = React.createClass({
   render: function render() {
     return React.createElement(
       "li",
-      { style: { float: "left", "margin": 0, "padding": 0, "cursor": "pointer" }, onClick: this.props.onSelect },
+      { className: "core-header-menuitem", style: { float: "left", "margin": 0, padding: '0 3px 0 3px', "cursor": "pointer" }, onClick: this.props.onSelect },
       this.props.title
     );
   }
@@ -36414,7 +36414,6 @@ var CreateModal = React.createClass({
   render: function render() {
     var _this = this;
 
-    console.log(this.state);
     var options = this.state.containments.map(function (containment) {
       return React.createElement(
         'option',
@@ -36904,15 +36903,15 @@ module.exports = function (cb) {
 var defaultData = {
 	isOpenAddObjectModal: false,
 	isOpenAddContainmentModal: false,
-	tabs: [/*{
-        title: 'Diagram Editor',
-        plugin: 'diagram-editor'
-        },{
-        title: 'Code',
-        plugin: 'code-generator'
-        },*/{
+	tabs: [{
 		title: 'Property',
 		plugin: 'property-editor'
+	}, {
+		title: 'Diagram Editor',
+		plugin: 'diagram-editor'
+	}, {
+		title: 'Code',
+		plugin: 'code-generator'
 	}]
 };
 

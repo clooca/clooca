@@ -87,7 +87,6 @@ var CreateModal = React.createClass({
   },
 
   render: function() {
-    console.log(this.state);
   	var options = this.state.containments.map(function(containment) {
   		return (<option key={'createmodal-'+containment.name}>{containment.name}</option>);
   	});
