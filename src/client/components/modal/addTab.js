@@ -8,7 +8,9 @@ const customStyles = {
     right                 : 'auto',
     bottom                : 'auto',
     marginRight           : '-50%',
-    transform             : 'translate(-50%, -50%)'
+    transform             : 'translate(-50%, -50%)',
+    backgroundColor       : '#272525',
+    color                 : '#fff'
   }
 };
 
@@ -22,8 +24,6 @@ var AddTabModal = React.createClass({
   },
 
   afterOpenModal: function() {
-    // references are now sync'd and can be accessed.
-    this.refs.subtitle.style.color = '#f00';
   },
 
   closeModal: function() {
@@ -52,9 +52,20 @@ var AddTabModal = React.createClass({
           onRequestClose={this.closeModal}
           style={customStyles} >
 
-          <h2 ref="subtitle">タブの追加</h2>
-          <select ref="plugins">{options}</select>
-          <input ref="title" type="text" />
+          <h2>タブの追加</h2>
+
+          <div className="core-modal-form">
+            <span className="core-modal-form-label">プラグイン</span>
+            <div className="core-modal-form-input">
+              <select ref="plugins">{options}</select>
+            </div>
+          </div>
+          <div className="core-modal-form">
+            <span className="core-modal-form-label">作成するタブの名前</span>
+            <div className="core-modal-form-input">
+              <input ref="title" type="text" />
+            </div>
+          </div>
           <button onClick={this.okModal}>OK</button>
           <button onClick={this.closeModal}>Cancel</button>
         </Modal>

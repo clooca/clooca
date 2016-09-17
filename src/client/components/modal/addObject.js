@@ -8,7 +8,9 @@ const customStyles = {
     right                 : 'auto',
     bottom                : 'auto',
     marginRight           : '-50%',
-    transform             : 'translate(-50%, -50%)'
+    transform             : 'translate(-50%, -50%)',
+    backgroundColor       : '#272525',
+    color                 : '#fff'
   }
 };
 
@@ -23,8 +25,6 @@ var CreateModal = React.createClass({
   },
 
   afterOpenModal: function() {
-    // references are now sync'd and can be accessed.
-    this.refs.subtitle.style.color = '#f00';
   },
 
   closeModal: function() {
@@ -67,9 +67,20 @@ var CreateModal = React.createClass({
           onRequestClose={this.closeModal}
           style={customStyles} >
 
-          <h2 ref="subtitle">インスタンス作成</h2>
-          <select ref="eClass">{options}</select>
-          <input ref="name" type="text" />
+          <h2>インスタンス作成</h2>
+
+          <div className="core-modal-form">
+            <span className="core-modal-form-label">クラス名</span>
+            <div className="core-modal-form-input">
+              <select ref="eClass">{options}</select>
+            </div>
+          </div>
+          <div className="core-modal-form">
+            <span className="core-modal-form-label">作成するオブジェクトの名前</span>
+            <div className="core-modal-form-input">
+              <input ref="name" type="text" />
+            </div>
+          </div>
           <button onClick={this.okModal}>OK</button>
           <button onClick={this.closeModal}>Cancel</button>
         </Modal>

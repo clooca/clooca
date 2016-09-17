@@ -93,6 +93,23 @@ html, body{
     hidden;clear:both;
 }
 
+/* modal form */
+
+.core-modal-form {
+    overflow:hidden;
+    clear:hidden;
+}
+
+.core-modal-form-label {
+    width: 200px;
+    float: left;
+}
+
+.core-modal-form-input {
+    float: left;
+}
+
+
 /*split-pane*/
 
 

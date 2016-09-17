@@ -36332,7 +36332,9 @@ var customStyles = {
     right: 'auto',
     bottom: 'auto',
     marginRight: '-50%',
-    transform: 'translate(-50%, -50%)'
+    transform: 'translate(-50%, -50%)',
+    backgroundColor: '#272525',
+    color: '#fff'
   }
 };
 
@@ -36348,10 +36350,7 @@ var CreateModal = React.createClass({
     };
   },
 
-  afterOpenModal: function afterOpenModal() {
-    // references are now sync'd and can be accessed.
-    this.refs.subtitle.style.color = '#f00';
-  },
+  afterOpenModal: function afterOpenModal() {},
 
   closeModal: function closeModal() {
     this.props.onClose();
@@ -36444,20 +36443,59 @@ var CreateModal = React.createClass({
           style: customStyles },
         React.createElement(
           'h2',
-          { ref: 'subtitle' },
+          null,
           'インスタンス作成'
         ),
         React.createElement(
-          'select',
-          { ref: 'association', onChange: this.onAssociationChange },
-          options
+          'div',
+          { className: 'core-modal-form' },
+          React.createElement(
+            'span',
+            { className: 'core-modal-form-label' },
+            '関連名'
+          ),
+          React.createElement(
+            'div',
+            { className: 'core-modal-form-input' },
+            React.createElement(
+              'select',
+              { ref: 'association', onChange: this.onAssociationChange },
+              options
+            )
+          )
         ),
         React.createElement(
-          'select',
-          { ref: 'eclass', onChange: this.onAssociationChange },
-          options2
+          'div',
+          { className: 'core-modal-form' },
+          React.createElement(
+            'span',
+            { className: 'core-modal-form-label' },
+            'クラス名'
+          ),
+          React.createElement(
+            'div',
+            { className: 'core-modal-form-input' },
+            React.createElement(
+              'select',
+              { ref: 'eclass', onChange: this.onAssociationChange },
+              options2
+            )
+          )
         ),
-        React.createElement('input', { ref: 'name', type: 'text' }),
+        React.createElement(
+          'div',
+          { className: 'core-modal-form' },
+          React.createElement(
+            'span',
+            { className: 'core-modal-form-label' },
+            '作成するオブジェクトの名前'
+          ),
+          React.createElement(
+            'div',
+            { className: 'core-modal-form-input' },
+            React.createElement('input', { ref: 'name', type: 'text' })
+          )
+        ),
         React.createElement(
           'button',
           { onClick: this.okModal },
@@ -36488,7 +36526,9 @@ var customStyles = {
     right: 'auto',
     bottom: 'auto',
     marginRight: '-50%',
-    transform: 'translate(-50%, -50%)'
+    transform: 'translate(-50%, -50%)',
+    backgroundColor: '#272525',
+    color: '#fff'
   }
 };
 
@@ -36503,10 +36543,7 @@ var CreateModal = React.createClass({
     };
   },
 
-  afterOpenModal: function afterOpenModal() {
-    // references are now sync'd and can be accessed.
-    this.refs.subtitle.style.color = '#f00';
-  },
+  afterOpenModal: function afterOpenModal() {},
 
   closeModal: function closeModal() {
     this.props.onClose();
@@ -36556,15 +36593,41 @@ var CreateModal = React.createClass({
           style: customStyles },
         React.createElement(
           'h2',
-          { ref: 'subtitle' },
+          null,
           'インスタンス作成'
         ),
         React.createElement(
-          'select',
-          { ref: 'eClass' },
-          options
+          'div',
+          { className: 'core-modal-form' },
+          React.createElement(
+            'span',
+            { className: 'core-modal-form-label' },
+            'クラス名'
+          ),
+          React.createElement(
+            'div',
+            { className: 'core-modal-form-input' },
+            React.createElement(
+              'select',
+              { ref: 'eClass' },
+              options
+            )
+          )
         ),
-        React.createElement('input', { ref: 'name', type: 'text' }),
+        React.createElement(
+          'div',
+          { className: 'core-modal-form' },
+          React.createElement(
+            'span',
+            { className: 'core-modal-form-label' },
+            '作成するオブジェクトの名前'
+          ),
+          React.createElement(
+            'div',
+            { className: 'core-modal-form-input' },
+            React.createElement('input', { ref: 'name', type: 'text' })
+          )
+        ),
         React.createElement(
           'button',
           { onClick: this.okModal },
@@ -36595,7 +36658,9 @@ var customStyles = {
     right: 'auto',
     bottom: 'auto',
     marginRight: '-50%',
-    transform: 'translate(-50%, -50%)'
+    transform: 'translate(-50%, -50%)',
+    backgroundColor: '#272525',
+    color: '#fff'
   }
 };
 
@@ -36609,10 +36674,7 @@ var AddTabModal = React.createClass({
     };
   },
 
-  afterOpenModal: function afterOpenModal() {
-    // references are now sync'd and can be accessed.
-    this.refs.subtitle.style.color = '#f00';
-  },
+  afterOpenModal: function afterOpenModal() {},
 
   closeModal: function closeModal() {
     this.props.onClose();
@@ -36647,15 +36709,41 @@ var AddTabModal = React.createClass({
           style: customStyles },
         React.createElement(
           'h2',
-          { ref: 'subtitle' },
+          null,
           'タブの追加'
         ),
         React.createElement(
-          'select',
-          { ref: 'plugins' },
-          options
+          'div',
+          { className: 'core-modal-form' },
+          React.createElement(
+            'span',
+            { className: 'core-modal-form-label' },
+            'プラグイン'
+          ),
+          React.createElement(
+            'div',
+            { className: 'core-modal-form-input' },
+            React.createElement(
+              'select',
+              { ref: 'plugins' },
+              options
+            )
+          )
         ),
-        React.createElement('input', { ref: 'title', type: 'text' }),
+        React.createElement(
+          'div',
+          { className: 'core-modal-form' },
+          React.createElement(
+            'span',
+            { className: 'core-modal-form-label' },
+            '作成するタブの名前'
+          ),
+          React.createElement(
+            'div',
+            { className: 'core-modal-form-input' },
+            React.createElement('input', { ref: 'title', type: 'text' })
+          )
+        ),
         React.createElement(
           'button',
           { onClick: this.okModal },
