@@ -36178,22 +36178,7 @@ var CoreComponent = React.createClass({
 
   componentWillMount: function componentWillMount() {
     var setState = this.setState.bind(this);
-    var modelInterface = clooca.getModelInterface();
-    var cc = clooca.getCC();
 
-    cc.request('clooca', 'findEcoreModel', { url: clooca.settings.metaModel.location }).then(function (model) {
-      return modelInterface.loadMetaModel(clooca.settings.metaModel.uri, model);
-    }).then(function (content) {
-      return clooca.getStorage().load('default');
-    }).then(function (modelJson) {
-      if (modelJson) return modelInterface.loadModel(modelJson);else return new Promise(function (resolve, reject) {
-        resolve();
-      });
-    }).then(function (content) {
-      console.log(content);
-    }).catch(function (err) {
-      console.error(err.stack);
-    });
     EditorStore.observe(function (data) {
       setState({
         editorSettings: data
@@ -36939,19 +36924,32 @@ window.clooca = clooca;
 
 registry.addModule('clooca', clooca);
 
+var modelInterface = clooca.getModelInterface();
+var cc = clooca.getCC();
+
 clooca.getCC().request('clooca', 'getSettings', {}).then(function (_settings) {
-	clooca.setSettings(_settings);
-	return pluginLoader();
+  clooca.setSettings(_settings);
+  return cc.request('clooca', 'findEcoreModel', { url: clooca.settings.metaModel.location });
+}).then(function (model) {
+  return modelInterface.loadMetaModel(clooca.settings.metaModel.uri, model);
+}).then(function (content) {
+  return clooca.getStorage().load('default');
+}).then(function (modelJson) {
+  if (modelJson) return modelInterface.loadModel(modelJson);else return new Promise(function (resolve, reject) {
+    resolve();
+  });
+}).then(function (content) {
+  return pluginLoader();
 }).then(function (pluginNames) {
-	console.log(pluginNames);
-	var mainEl = React.createElement(
-		'div',
-		null,
-		React.createElement(CoreComponent, { pluginNames: pluginNames })
-	);
-	ReactDOM.render(mainEl, document.getElementById('main'));
+  console.log(pluginNames);
+  var mainEl = React.createElement(
+    'div',
+    null,
+    React.createElement(CoreComponent, { pluginNames: pluginNames })
+  );
+  ReactDOM.render(mainEl, document.getElementById('main'));
 }).catch(function (err) {
-	console.error(err.stack);
+  console.error(err.stack);
 });
 
 },{"../common/core/registry":264,"./clooca":248,"./components/core":250,"./pluginLoader":260,"react":225,"react-dom":63}],260:[function(require,module,exports){
@@ -37096,6 +37094,10 @@ ModelInterface.prototype.getRawModel = function () {
 
 ModelInterface.prototype.getRawMetaModel = function () {
 	return this.metamodel;
+};
+
+ModelInterface.prototype.getResourceSet = function () {
+	return this.resourceSet;
 };
 
 ModelInterface.prototype.loadMetaModel = function (uri, data) {

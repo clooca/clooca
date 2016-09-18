@@ -15,22 +15,22 @@
 .tree-item-head {
 	float: left;
 	cursor: pointer;
-	width: 24px;
-	height: 24px;
+	width: 20px;
+	height: 20px;
 }
 
 .tree-item-head:hover {
-	background-color: #aaa;
+	background-color: #333;
 }
 
 .tree-item-head-hidden {
 	background-image: 
-		url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 64 64'><polygon fill='#555' points='4,4 60,30 4,60'></polygon></svg>");
+		url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 64 64'><polygon fill='#baa' points='4,4 60,30 4,60'></polygon></svg>");
 }
 
 .tree-item-head-show {
 	background-image: 
-		url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 64 64'><polygon fill='#555' points='30,60 4,4 60,4'></polygon></svg>");
+		url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 64 64'><polygon fill='#baa' points='30,60 4,4 60,4'></polygon></svg>");
 }
 
 .tree-item-title {

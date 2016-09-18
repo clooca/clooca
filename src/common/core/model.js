@@ -23,6 +23,9 @@ ModelInterface.prototype.getRawMetaModel = function() {
 	return this.metamodel;
 };
 
+ModelInterface.prototype.getResourceSet = function() {
+	return this.resourceSet;
+};
 
 ModelInterface.prototype.loadMetaModel = function(uri, data) {
 	var self = this;

@@ -37,7 +37,6 @@ let FormList = React.createClass({
           }).join(',');
         }else if(item.at) {
         }else{
-          console.log(item);
           value = item.get('name');
         }
       }else{

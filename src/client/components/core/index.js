@@ -22,23 +22,7 @@ let CoreComponent = React.createClass({
 
   componentWillMount: function() {
   	let setState = this.setState.bind(this);
-    let modelInterface = clooca.getModelInterface();
-    let cc = clooca.getCC();
 
-    cc.request('clooca', 'findEcoreModel', {url: clooca.settings.metaModel.location}).then((model) => {
-      return modelInterface.loadMetaModel( clooca.settings.metaModel.uri, model );
-    }).then(function(content) {
-      return clooca.getStorage().load('default');
-    }).then(function(modelJson) {
-      if(modelJson)
-        return modelInterface.loadModel(modelJson);
-      else
-        return new Promise((resolve, reject)=>{resolve()});
-    }).then(function(content) {
-      console.log(content)
-    }).catch(function(err){
-      console.error(err.stack);
-    });
     EditorStore.observe((data) => {
       setState({
         editorSettings: data

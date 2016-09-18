@@ -20928,7 +20928,6 @@ var FormList = React.createClass({
             return i.get('name');
           }).join(',');
         } else if (item.at) {} else {
-          console.log(item);
           value = item.get('name');
         }
       } else {
@@ -21003,13 +21002,18 @@ var PropertyEditor = React.createClass({
 
   componentWillMount: function componentWillMount() {
     var setState = this.setState.bind(this);
+
     var modelInterface = clooca.getModelInterface();
-    modelInterface.on('update', function (e) {
-      var model = e.model.get('contents').first();
+    var model = modelInterface.getRawModel();
+    var resourceSet = modelInterface.getResourceSet();
+    model.on('change', function (f) {
       setState({
-        model: model,
-        resourceSet: e.model.get('resourceSet')
+        model: f
       });
+    });
+    setState({
+      model: model.get('contents').first(),
+      resourceSet: resourceSet
     });
     this.props.propertyEditor.on('select', function (object) {
       setState({

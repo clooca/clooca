@@ -11,8 +11,22 @@ window.clooca = clooca;
 
 registry.addModule('clooca', clooca);
 
+let modelInterface = clooca.getModelInterface();
+let cc = clooca.getCC();
+
 clooca.getCC().request('clooca', 'getSettings', {}).then((_settings) => {
 	clooca.setSettings(_settings);
+    return cc.request('clooca', 'findEcoreModel', {url: clooca.settings.metaModel.location});
+}).then((model) => {
+      return modelInterface.loadMetaModel( clooca.settings.metaModel.uri, model );
+}).then(function(content) {
+  return clooca.getStorage().load('default');
+}).then(function(modelJson) {
+  if(modelJson)
+    return modelInterface.loadModel(modelJson);
+  else
+    return new Promise((resolve, reject)=>{resolve()});
+}).then(function(content) {
 	return pluginLoader();
 }).then((pluginNames) => {
 	console.log(pluginNames);

@@ -20877,10 +20877,14 @@ var Graph = React.createClass({
   componentWillMount: function componentWillMount() {
     var setState = this.setState.bind(this);
     var modelInterface = clooca.getModelInterface();
-    modelInterface.on('update', function (e) {
+    var model = modelInterface.getRawModel();
+    model.on('change', function (f) {
       setState({
-        resources: e.model
+        model: model.get('contents').first()
       });
+    });
+    setState({
+      model: model.get('contents').first()
     });
   },
 
@@ -20891,8 +20895,8 @@ var Graph = React.createClass({
   componentWillUnmount: function componentWillUnmount() {},
 
   render: function render() {
-    if (!this.state.resources) return React.createElement('div', null);
-    var model = this.state.resources.get('contents').first();
+    if (!this.state.model) return React.createElement('div', null);
+    var model = this.state.model;
     var gnodes = model.get('classes').map(function (_class) {
       return _class.get('name');
     });

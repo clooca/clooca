@@ -20777,13 +20777,16 @@ var ExplorerComponent = React.createClass({
   componentWillMount: function componentWillMount() {
     var setState = this.setState.bind(this);
     var modelInterface = clooca.getModelInterface();
-    modelInterface.on('update', function (e) {
-      var model = e.model.get('contents').first();
-      var resourceSet = e.model.get('resourceSet');
+    var model = modelInterface.getRawModel();
+    var resourceSet = modelInterface.getResourceSet();
+    model.on('change', function (f) {
       setState({
-        model: model,
-        resourceSet: resourceSet
+        model: modelInterface.getRawModel().get('contents').first()
       });
+    });
+    setState({
+      model: model.get('contents').first(),
+      resourceSet: resourceSet
     });
   },
 
