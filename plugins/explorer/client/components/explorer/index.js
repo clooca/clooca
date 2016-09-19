@@ -17,7 +17,6 @@ let ExplorerComponent = React.createClass({
     var resourceSet = modelInterface.getResourceSet();
 
     model.on('add change', function(f) {
-      console.log(f);
       setState({
         model: modelInterface.getRawModel().get('contents').first(),
       });

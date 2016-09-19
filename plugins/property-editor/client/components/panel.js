@@ -23,7 +23,7 @@ let Panel = React.createClass({
   },
 
   getStructureFeatures: function() {
-  	var eStructuralFeatures = this.props.model.eClass.get('eStructuralFeatures');
+  	var eStructuralFeatures = this.props.model.eClass.get('eAllStructuralFeatures');
   	var containments = eStructuralFeatures.filter((meta) => {
       return !meta.get('containment');
     }).map((meta) => {

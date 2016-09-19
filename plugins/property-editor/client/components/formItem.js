@@ -12,22 +12,26 @@ let FormItem = React.createClass({
 
   componentWillMount: function() {
     var setState = this.setState.bind(this);
-    this.refreshState(this.props);
+    //this.refreshState(this.props);
   },
 
   componentWillReceiveProps: function(nextProps) {
-    this.refreshState(nextProps);
+    //this.refreshState(nextProps);
   },
 
-  refreshState: function(props) {
+  getValue: function(props) {
     let meta = props.meta;
 
     let value = '';
     if(meta.get('eType').get('name') == 'EString') {
       value = props.parent.get(props.childName);
-    }else if(meta.get('eType').get('name') == 'ENumber') {
+    }else if(meta.get('eType').get('name') == 'EInt') {
       value = props.parent.get(props.childName);
     }else if(meta.get('eType').get('name') == 'EBoolean') {
+      value = props.parent.get(props.childName);
+    }else if(meta.get('eType').get('name') == 'EDouble') {
+      value = props.parent.get(props.childName);
+    }else if(meta.get('eType').get('name') == 'EDate') {
       value = props.parent.get(props.childName);
     }else{
       let item = props.parent.get(props.childName);
@@ -37,17 +41,16 @@ let FormItem = React.createClass({
             return i.get('name');
           }).join(',');
         }else if(item.at) {
-        }else{
-          console.log(item);
+        }else if(item.get) {
           value = item.get('name');
+        }else{
+          value = item;
         }
       }else{
         value = 'none';
       }
     }
-    this.setState({
-      value: value
-    });
+    return value;
   },
 
   componentDidMount: function () {
@@ -59,11 +62,21 @@ let FormItem = React.createClass({
   componentWillUnmount: function() {
   },
 
-  updateProperties: function(e) {
+  updateProperties: function(eTypeName, e) {
+    console.log(eTypeName, e.target.value);
+    let newValue = null;
+    if(eTypeName == 'EBoolean') {
+      let currentValue = this.props.parent.get(this.props.childName);
+      newValue = !currentValue;
+    }else{
+      newValue = e.target.value;
+    }
+    /*
     this.setState({
-      value: e.target.value
-    })
-  	this.props.parent.set(this.props.childName, e.target.value);
+      value: newValue
+    });
+    */
+  	this.props.parent.set(this.props.childName, newValue);
   },
 
   updateRelation: function(event) {
@@ -79,23 +92,29 @@ let FormItem = React.createClass({
   },
 
   render: function () {
+    let currentValue = this.getValue(this.props);
+    console.log(currentValue);
   	let meta = this.props.meta;
   	let item = this.props.parent.get(this.props.childName);
   	var label = meta.get('name');
   	var inputElem = (<div />)
     if(meta.get('upperBound') == 1) {
-      if(meta.get('eType').get('name') == 'EString') {
-        inputElem = (<input onChange={this.updateProperties} type="text" value={this.state.value}/>);
-      }else if(meta.get('eType').get('name') == 'ENumber') {
-        inputElem = (<input onChange={this.updateProperties} type="number" value={this.state.value}/>);
-      }else if(meta.get('eType').get('name') == 'EBoolean') {
-        inputElem = (<input onChange={this.updateProperties} type="checkbox" checked={this.state.value}/>);
+      let eTypeName = meta.get('eType').get('name');
+      let updateProperties = this.updateProperties.bind(this, eTypeName);
+      if(eTypeName == 'EString') {
+        inputElem = (<input onChange={updateProperties} type="text" value={currentValue}/>);
+      }else if(eTypeName == 'EInt') {
+        inputElem = (<input onChange={updateProperties} type="number" value={currentValue}/>);
+      }else if(eTypeName == 'EBoolean') {
+        inputElem = (<input onChange={updateProperties} type="checkbox" checked={currentValue}/>);
+      }else if(eTypeName == 'EDouble') {
+      }else if(eTypeName == 'EDate') {
       }else{
         let elements = this.props.resourceSet.elements(meta.get('eType').get('name'));
         let options = elements.map((e) => {
           return (<option>{e.get('name')}</option>);
         });
-        inputElem = (<select onChange={this.updateRelation} value={this.state.value}>{options}</select>);
+        inputElem = (<select onChange={this.updateRelation} value={currentValue}>{options}</select>);
       }
     }else{
       inputElem = (<FormList meta={meta} list={item}></FormList>);

@@ -20776,22 +20776,26 @@ var FormItem = React.createClass({
 
   componentWillMount: function componentWillMount() {
     var setState = this.setState.bind(this);
-    this.refreshState(this.props);
+    //this.refreshState(this.props);
   },
 
   componentWillReceiveProps: function componentWillReceiveProps(nextProps) {
-    this.refreshState(nextProps);
+    //this.refreshState(nextProps);
   },
 
-  refreshState: function refreshState(props) {
+  getValue: function getValue(props) {
     var meta = props.meta;
 
     var value = '';
     if (meta.get('eType').get('name') == 'EString') {
       value = props.parent.get(props.childName);
-    } else if (meta.get('eType').get('name') == 'ENumber') {
+    } else if (meta.get('eType').get('name') == 'EInt') {
       value = props.parent.get(props.childName);
     } else if (meta.get('eType').get('name') == 'EBoolean') {
+      value = props.parent.get(props.childName);
+    } else if (meta.get('eType').get('name') == 'EDouble') {
+      value = props.parent.get(props.childName);
+    } else if (meta.get('eType').get('name') == 'EDate') {
       value = props.parent.get(props.childName);
     } else {
       var item = props.parent.get(props.childName);
@@ -20800,17 +20804,16 @@ var FormItem = React.createClass({
           value = item.map(function (i) {
             return i.get('name');
           }).join(',');
-        } else if (item.at) {} else {
-          console.log(item);
+        } else if (item.at) {} else if (item.get) {
           value = item.get('name');
+        } else {
+          value = item;
         }
       } else {
         value = 'none';
       }
     }
-    this.setState({
-      value: value
-    });
+    return value;
   },
 
   componentDidMount: function componentDidMount() {},
@@ -20819,11 +20822,21 @@ var FormItem = React.createClass({
 
   componentWillUnmount: function componentWillUnmount() {},
 
-  updateProperties: function updateProperties(e) {
+  updateProperties: function updateProperties(eTypeName, e) {
+    console.log(eTypeName, e.target.value);
+    var newValue = null;
+    if (eTypeName == 'EBoolean') {
+      var currentValue = this.props.parent.get(this.props.childName);
+      newValue = !currentValue;
+    } else {
+      newValue = e.target.value;
+    }
+    /*
     this.setState({
-      value: e.target.value
+      value: newValue
     });
-    this.props.parent.set(this.props.childName, e.target.value);
+    */
+    this.props.parent.set(this.props.childName, newValue);
   },
 
   updateRelation: function updateRelation(event) {
@@ -20839,18 +20852,22 @@ var FormItem = React.createClass({
   },
 
   render: function render() {
+    var currentValue = this.getValue(this.props);
+    console.log(currentValue);
     var meta = this.props.meta;
     var item = this.props.parent.get(this.props.childName);
     var label = meta.get('name');
     var inputElem = React.createElement('div', null);
     if (meta.get('upperBound') == 1) {
-      if (meta.get('eType').get('name') == 'EString') {
-        inputElem = React.createElement('input', { onChange: this.updateProperties, type: 'text', value: this.state.value });
-      } else if (meta.get('eType').get('name') == 'ENumber') {
-        inputElem = React.createElement('input', { onChange: this.updateProperties, type: 'number', value: this.state.value });
-      } else if (meta.get('eType').get('name') == 'EBoolean') {
-        inputElem = React.createElement('input', { onChange: this.updateProperties, type: 'checkbox', checked: this.state.value });
-      } else {
+      var eTypeName = meta.get('eType').get('name');
+      var updateProperties = this.updateProperties.bind(this, eTypeName);
+      if (eTypeName == 'EString') {
+        inputElem = React.createElement('input', { onChange: updateProperties, type: 'text', value: currentValue });
+      } else if (eTypeName == 'EInt') {
+        inputElem = React.createElement('input', { onChange: updateProperties, type: 'number', value: currentValue });
+      } else if (eTypeName == 'EBoolean') {
+        inputElem = React.createElement('input', { onChange: updateProperties, type: 'checkbox', checked: currentValue });
+      } else if (eTypeName == 'EDouble') {} else if (eTypeName == 'EDate') {} else {
         var elements = this.props.resourceSet.elements(meta.get('eType').get('name'));
         var options = elements.map(function (e) {
           return React.createElement(
@@ -20861,7 +20878,7 @@ var FormItem = React.createClass({
         });
         inputElem = React.createElement(
           'select',
-          { onChange: this.updateRelation, value: this.state.value },
+          { onChange: this.updateRelation, value: currentValue },
           options
         );
       }
@@ -21071,7 +21088,7 @@ var Panel = React.createClass({
   getStructureFeatures: function getStructureFeatures() {
     var _this = this;
 
-    var eStructuralFeatures = this.props.model.eClass.get('eStructuralFeatures');
+    var eStructuralFeatures = this.props.model.eClass.get('eAllStructuralFeatures');
     var containments = eStructuralFeatures.filter(function (meta) {
       return !meta.get('containment');
     }).map(function (meta) {
