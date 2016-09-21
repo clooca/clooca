@@ -6,7 +6,7 @@ let ExplorerComponent = React.createClass({
 
   getInitialState: function () {
     return {
-
+      model: []
     };
   },
 
@@ -18,11 +18,11 @@ let ExplorerComponent = React.createClass({
 
     model.on('add change', function(f) {
       setState({
-        model: modelInterface.getRawModel().get('contents').first(),
+        model: modelInterface.getRawModel().get('contents')
       });
     });
     setState({
-      model: model.get('contents').first(),
+      model: model.get('contents'),
       resourceSet: resourceSet
     });
   },
@@ -47,7 +47,9 @@ let ExplorerComponent = React.createClass({
   render: function () {
     let content = (<div/>);
     if(this.state.model) {
-      content = (<ExplorerItem item={this.state.model} resourceSet={this.state.resourceSet}></ExplorerItem>);
+      content = this.state.model.map((model)=>{
+        return (<ExplorerItem item={model} resourceSet={this.state.resourceSet}></ExplorerItem>)
+      });
     }else{
       content = (<div><a style={{cursor:'pointer', color:'#fff'}} onClick={this.addObject}>最初のオブジェクトを作成する。</a></div>);
     }

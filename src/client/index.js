@@ -16,9 +16,16 @@ let cc = clooca.getCC();
 
 clooca.getCC().request('clooca', 'getSettings', {}).then((_settings) => {
 	clooca.setSettings(_settings);
-    return cc.request('clooca', 'findEcoreModel', {url: clooca.settings.metaModel.location});
-}).then((model) => {
-      return modelInterface.loadMetaModel( clooca.settings.metaModel.uri, model );
+	var loadTasks = clooca.settings.requiredModels.map((requiredModel)=>{
+		return function() {
+		    return cc.request('clooca', 'findEcoreModel', {url: requiredModel.location}).then((model)=>{
+		    	return modelInterface.loadModel2( requiredModel.uri, model );
+		    });
+		}
+	});
+	return loadTasks.reduce(function (a, b) {
+		return a.then(b);
+	}, Promise.resolve(null));
 }).then(function(content) {
   return clooca.getStorage().load('default');
 }).then(function(modelJson) {

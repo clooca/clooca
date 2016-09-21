@@ -4,6 +4,10 @@ var defaultData = {
 	tabs: [{
 		title: 'Property',
 		plugin: 'property-editor'
+		/*
+	},{
+		title: 'Graphical Modeling Editor',
+		plugin: 'gme'*/
 	},{
 		title: 'Diagram Editor',
 		plugin: 'diagram-editor'

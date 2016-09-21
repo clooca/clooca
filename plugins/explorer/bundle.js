@@ -20771,7 +20771,9 @@ var ExplorerComponent = React.createClass({
 
 
   getInitialState: function getInitialState() {
-    return {};
+    return {
+      model: []
+    };
   },
 
   componentWillMount: function componentWillMount() {
@@ -20782,11 +20784,11 @@ var ExplorerComponent = React.createClass({
 
     model.on('add change', function (f) {
       setState({
-        model: modelInterface.getRawModel().get('contents').first()
+        model: modelInterface.getRawModel().get('contents')
       });
     });
     setState({
-      model: model.get('contents').first(),
+      model: model.get('contents'),
       resourceSet: resourceSet
     });
   },
@@ -20805,9 +20807,13 @@ var ExplorerComponent = React.createClass({
   },
 
   render: function render() {
+    var _this = this;
+
     var content = React.createElement('div', null);
     if (this.state.model) {
-      content = React.createElement(ExplorerItem, { item: this.state.model, resourceSet: this.state.resourceSet });
+      content = this.state.model.map(function (model) {
+        return React.createElement(ExplorerItem, { item: model, resourceSet: _this.state.resourceSet });
+      });
     } else {
       content = React.createElement(
         'div',

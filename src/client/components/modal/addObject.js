@@ -32,11 +32,11 @@ var CreateModal = React.createClass({
   },
 
   okModal: function() {
-    var metamodel = clooca.getModelInterface().getRawMetaModel();
     var model = clooca.getModelInterface().getRawModel();
+    var resourceSet = clooca.getModelInterface().getResourceSet();
   	var name = this.refs.name.value;
     var eClassName = this.refs.eClass.value;
-    var eClass = metamodel.get('resourceSet').elements('EClass').filter((_eclass) => {
+    var eClass = resourceSet.elements('EClass').filter((_eclass) => {
       return _eclass.get('name') == eClassName;
     })[0];
 
@@ -46,8 +46,8 @@ var CreateModal = React.createClass({
   },
 
   componentWillReceiveProps: function() {
-  	var metamodel = clooca.getModelInterface().getRawMetaModel();
-    var eClassNames = metamodel.get('resourceSet').elements('EClass').map((_eclass) => {
+    var resourceSet = clooca.getModelInterface().getResourceSet();
+    var eClassNames = resourceSet.elements('EClass').map((_eclass) => {
       return _eclass.get('name');
     });
   	this.setState({

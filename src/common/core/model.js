@@ -39,7 +39,7 @@ ModelInterface.prototype.loadMetaModel = function(uri, data) {
 			self.fireUpdate();
 			resolve(model);
 		};
-		if(uri == 'ecore') {
+		if(uri == 'http://www.eclipse.org/emf/2002/Ecore') {
 			self.metamodel = self.resourceSet.create({ uri: uri });
 			self.metamodel.add(Ecore.EcorePackage);
 			resolve(Ecore.EcorePackage);
@@ -48,6 +48,7 @@ ModelInterface.prototype.loadMetaModel = function(uri, data) {
 		}
 	})
 }
+
 
 ModelInterface.prototype.loadModel = function(model) {
 	var self = this;
@@ -62,6 +63,26 @@ ModelInterface.prototype.loadModel = function(model) {
 			resolve(model);
 		};
 		self.resourceSet.create({ uri: 'model.json' }).load(model, callback);
+	});
+}
+
+ModelInterface.prototype.loadModel2 = function(uri, data) {
+	var self = this;
+	return new Promise(function(resolve, reject) {
+		var callback = function(model, err) {
+		    if (err) {
+		    	reject(err);
+		        return;
+		    }
+			resolve(model);
+		};
+		if(uri == 'http://www.eclipse.org/emf/2002/Ecore') {
+			var resource = self.resourceSet.create({ uri: uri });
+			resource.add(Ecore.EcorePackage);
+			resolve(Ecore.EcorePackage);
+		}else{
+			self.resourceSet.create({ uri: uri }).load(data, callback);
+		}
 	});
 }
 
