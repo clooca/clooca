@@ -63,7 +63,6 @@ let FormItem = React.createClass({
   },
 
   updateProperties: function(eTypeName, e) {
-    console.log(eTypeName, e.target.value);
     let newValue = null;
     if(eTypeName == 'EBoolean') {
       let currentValue = this.props.parent.get(this.props.childName);
@@ -93,7 +92,6 @@ let FormItem = React.createClass({
 
   render: function () {
     let currentValue = this.getValue(this.props);
-    console.log(currentValue);
   	let meta = this.props.meta;
   	let item = this.props.parent.get(this.props.childName);
   	var label = meta.get('name');
@@ -112,7 +110,8 @@ let FormItem = React.createClass({
       }else{
         let elements = this.props.resourceSet.elements(meta.get('eType').get('name'));
         let options = elements.map((e) => {
-          return (<option>{e.get('name')}</option>);
+          let containerName = e.eContainer.get('name');
+          return (<option value={e.get('name')}>{containerName + ':' + e.get('name')}</option>);
         });
         inputElem = (<select onChange={this.updateRelation} value={currentValue}>{options}</select>);
       }

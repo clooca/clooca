@@ -38,6 +38,13 @@ let ExplorerItem = React.createClass({
     });
   },
 
+  deleteInstance: function() {
+    let cc = clooca.getCC();
+    let eContainer = this.props.item.eContainer;
+    let eContainingFeature = this.props.item.eContainingFeature;
+    eContainer.get(eContainingFeature.get('name')).remove(this.props.item);
+  },
+
   changeMode: function() {
     this.setState({
       hidden: !this.state.hidden
@@ -75,6 +82,7 @@ let ExplorerItem = React.createClass({
           <div className={this.state.hidden?'tree-item-head tree-item-head-hidden':'tree-item-head tree-item-head-show'} onClick={this.changeMode}></div>
           <div className="tree-item-title" onClick={this.select}>{item.get('name')}</div>
           <div className="tree-item-add" onClick={this.addInstance}>+</div>
+          <div className="tree-item-add" onClick={this.deleteInstance}>-</div>
         </div>
 	    	<div>{(!this.state.hidden)?(ExplorerItems):([])}</div>
     	</div>

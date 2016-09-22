@@ -20782,7 +20782,7 @@ var ExplorerComponent = React.createClass({
     var model = modelInterface.getRawModel();
     var resourceSet = modelInterface.getResourceSet();
 
-    model.on('add change', function (f) {
+    model.on('add remove change', function (f) {
       setState({
         model: modelInterface.getRawModel().get('contents')
       });
@@ -20875,6 +20875,13 @@ var ExplorerItem = React.createClass({
     }).then(function (_settings) {});
   },
 
+  deleteInstance: function deleteInstance() {
+    var cc = clooca.getCC();
+    var eContainer = this.props.item.eContainer;
+    var eContainingFeature = this.props.item.eContainingFeature;
+    eContainer.get(eContainingFeature.get('name')).remove(this.props.item);
+  },
+
   changeMode: function changeMode() {
     this.setState({
       hidden: !this.state.hidden
@@ -20920,6 +20927,11 @@ var ExplorerItem = React.createClass({
           'div',
           { className: 'tree-item-add', onClick: this.addInstance },
           '+'
+        ),
+        React.createElement(
+          'div',
+          { className: 'tree-item-add', onClick: this.deleteInstance },
+          '-'
         )
       ),
       React.createElement(

@@ -20823,7 +20823,6 @@ var FormItem = React.createClass({
   componentWillUnmount: function componentWillUnmount() {},
 
   updateProperties: function updateProperties(eTypeName, e) {
-    console.log(eTypeName, e.target.value);
     var newValue = null;
     if (eTypeName == 'EBoolean') {
       var currentValue = this.props.parent.get(this.props.childName);
@@ -20853,7 +20852,6 @@ var FormItem = React.createClass({
 
   render: function render() {
     var currentValue = this.getValue(this.props);
-    console.log(currentValue);
     var meta = this.props.meta;
     var item = this.props.parent.get(this.props.childName);
     var label = meta.get('name');
@@ -20870,10 +20868,11 @@ var FormItem = React.createClass({
       } else if (eTypeName == 'EDouble') {} else if (eTypeName == 'EDate') {} else {
         var elements = this.props.resourceSet.elements(meta.get('eType').get('name'));
         var options = elements.map(function (e) {
+          var containerName = e.eContainer.get('name');
           return React.createElement(
             'option',
-            null,
-            e.get('name')
+            { value: e.get('name') },
+            containerName + ':' + e.get('name')
           );
         });
         inputElem = React.createElement(
