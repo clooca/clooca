@@ -114,6 +114,9 @@ let Header = React.createClass({
   },
 
   render: function () {
+    /*
+      <MenuItem onSelect={this.onAddObjectMenuSelected}>Add Object</MenuItem>
+    */
     return (
     	<div className="core-header" style={{height:"32px", borderBottom:"solid 1px #333"}}>
     		<div style={{float:"left", "marginLeft":"12px"}}>
@@ -121,11 +124,10 @@ let Header = React.createClass({
     		</div>
     		<div style={{float:"left", "marginLeft":"30px"}}>
     			<Menu>
-            <MenuItem onSelect={this.onAddObjectMenuSelected}>オブジェクトを追加</MenuItem>
-            <MenuItem onSelect={this.onAddTabMenuSelected}>タブを追加</MenuItem>
-            <MenuItem onSelect={this.onSaveMenuSelected}>モデルを保存</MenuItem>
-            <MenuItem onSelect={this.onImportMenuSelected}>インポート</MenuItem>
-            <MenuItem onSelect={this.onExportMenuSelected}>エクスポート</MenuItem>
+            <MenuItem onSelect={this.onAddTabMenuSelected}>Add New Tab</MenuItem>
+            <MenuItem onSelect={this.onSaveMenuSelected}>Save Model</MenuItem>
+            <MenuItem onSelect={this.onImportMenuSelected}>Import Model</MenuItem>
+            <MenuItem onSelect={this.onExportMenuSelected}>Export Model</MenuItem>
             <MenuItem><Resources onSelect={this.onDatasourceSelected}/></MenuItem>
           </Menu>
     		</div>

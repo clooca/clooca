@@ -38,7 +38,7 @@ let Resources = React.createClass({
   render: function () {
     var loaded = clooca.getModelInterface().getLoadedList();
   	var options = loaded.map((loaded)=>{
-  		return (<option value={loaded.uri}>{this.summary(loaded.uri)}</option>);
+  		return (<option key={loaded.uri} value={loaded.uri}>{this.summary(loaded.uri)}</option>);
   	});
     return (
     	<select onChange={this.onChange}>{options}</select>

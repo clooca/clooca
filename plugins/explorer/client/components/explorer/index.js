@@ -47,7 +47,7 @@ let ExplorerComponent = React.createClass({
     return (
       <div>
       {this.state.resource?(<Resource resource={this.state.resource} resourceSet={this.state.resourceSet}></Resource>):
-      (<div><a style={{cursor:'pointer', color:'#333'}} onClick={this.addObject}>最初のオブジェクトを作成する。</a></div>)}
+      (<div></div>)}
       </div>
     );
   }

@@ -20808,15 +20808,7 @@ var ExplorerComponent = React.createClass({
     return React.createElement(
       'div',
       null,
-      this.state.resource ? React.createElement(Resource, { resource: this.state.resource, resourceSet: this.state.resourceSet }) : React.createElement(
-        'div',
-        null,
-        React.createElement(
-          'a',
-          { style: { cursor: 'pointer', color: '#333' }, onClick: this.addObject },
-          '最初のオブジェクトを作成する。'
-        )
-      )
+      this.state.resource ? React.createElement(Resource, { resource: this.state.resource, resourceSet: this.state.resourceSet }) : React.createElement('div', null)
     );
   }
 });
@@ -21009,7 +21001,7 @@ var ExplorerComponent = React.createClass({
         React.createElement(
           'a',
           { style: { cursor: 'pointer', color: '#333' }, onClick: this.addObject },
-          '最初のオブジェクトを作成する。'
+          'Add New Object'
         )
       );
     }

@@ -59,7 +59,7 @@ var CreateModal = React.createClass({
 
   render: function() {
     var options = this.state.eClassNames.map((eClassName) => {
-      return (<option>{eClassName}</option>);
+      return (<option key={eClassName}>{eClassName}</option>);
     });
     return (
       <div>

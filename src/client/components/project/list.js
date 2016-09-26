@@ -74,7 +74,7 @@ let ProjectList = React.createClass({
   render: function () {
     var self = this;
     var projectList = this.state.projects.map((project) => {
-      return (<div className="projectlist-item" onClick={this.openSettings.bind(this, project)}><div className="projectlist-item-title" >{project.name}</div><a className="projectlist-item-editor" onClick={this.openEditor.bind(this, project)}>go to editor</a><a className="projectlist-item-delete" onClick={this.deleteProject.bind(this, project)}>delete</a><div className="projectlist-item-clear"></div></div>)
+      return (<div className="projectlist-item" onClick={this.openSettings.bind(this, project)}><div className="projectlist-item-title" >{project.name}</div><a className="projectlist-item-editor" onClick={this.openEditor.bind(this, project)}>open editor</a><a className="projectlist-item-delete" onClick={this.deleteProject.bind(this, project)}>delete</a><div className="projectlist-item-clear"></div></div>)
     });
 
     return (

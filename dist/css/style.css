@@ -4,7 +4,7 @@ html, body{
 	height: 100%;
 	width: 100%;
     background-image: linear-gradient(0deg,#fff,#eff0f2);
-    color: #fff;
+    color: #333;
 }
 
 a {
@@ -111,51 +111,21 @@ a {
 /* menu */
 
 .core-header-menu {
-
+    color: #fff;
+    font-size: 15px;
 }
 
 .core-header-menuitem {
+    float: left;
+    margin: 0;
+    padding: 0 8px 0 3px;
+    cursor: pointer
 }
 
 .core-header-menuitem:hover {
     background-color: #3f3f3f;
 }
 
-/* tab */
-
-.core-tabmenu{
-    padding:0px;
-    margin:0px;
-    color:#333;
-    font-size: 11px;
-    width:500px;
-    position:relative;
-}
-.core-tabmenu div.core-tab{
-    position: absolute;
-    top:0px;
-    left:0px;
-}
-.core-tabmenu div.core-tabitem{
-    float: left;
-    height: 40px;
-    line-height: 40px;
-    text-align: center;
-    width: 100px;
-    display: block;
-    text-decoration:none;
-    color:#333;
-    background:#eee;
-}
-.core-tabmenu div.core-tabitem:hover{
-    background:#000;
-    color:#fff;
-}
-.core-tab_content {
-    width:500px;
-    overflow:
-    hidden;clear:both;
-}
 
 /* modal form */
 

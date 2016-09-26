@@ -41533,6 +41533,9 @@ var Header = React.createClass({
   },
 
   render: function render() {
+    /*
+      <MenuItem onSelect={this.onAddObjectMenuSelected}>Add Object</MenuItem>
+    */
     return React.createElement(
       'div',
       { className: 'core-header', style: { height: "32px", borderBottom: "solid 1px #333" } },
@@ -41557,28 +41560,23 @@ var Header = React.createClass({
           null,
           React.createElement(
             MenuItem,
-            { onSelect: this.onAddObjectMenuSelected },
-            'オブジェクトを追加'
-          ),
-          React.createElement(
-            MenuItem,
             { onSelect: this.onAddTabMenuSelected },
-            'タブを追加'
+            'Add New Tab'
           ),
           React.createElement(
             MenuItem,
             { onSelect: this.onSaveMenuSelected },
-            'モデルを保存'
+            'Save Model'
           ),
           React.createElement(
             MenuItem,
             { onSelect: this.onImportMenuSelected },
-            'インポート'
+            'Import Model'
           ),
           React.createElement(
             MenuItem,
             { onSelect: this.onExportMenuSelected },
-            'エクスポート'
+            'Export Model'
           ),
           React.createElement(
             MenuItem,
@@ -41733,7 +41731,7 @@ var Resources = React.createClass({
     var options = loaded.map(function (loaded) {
       return React.createElement(
         'option',
-        { value: loaded.uri },
+        { key: loaded.uri, value: loaded.uri },
         _this.summary(loaded.uri)
       );
     });
@@ -41869,10 +41867,9 @@ var MenuItem = React.createClass({
   componentWillUnmount: function componentWillUnmount() {},
 
   render: function render() {
-    console.log(this.props.children);
     return React.createElement(
       "li",
-      { className: "core-header-menuitem", style: { float: "left", "margin": 0, padding: '0 3px 0 3px', "cursor": "pointer" }, onClick: this.props.onSelect },
+      { className: "core-header-menuitem", onClick: this.props.onSelect },
       this.props.children
     );
   }
@@ -42142,7 +42139,7 @@ var CreateModal = React.createClass({
     var options = this.state.eClassNames.map(function (eClassName) {
       return React.createElement(
         'option',
-        null,
+        { key: eClassName },
         eClassName
       );
     });
@@ -42674,7 +42671,7 @@ var ProjectList = React.createClass({
         React.createElement(
           'a',
           { className: 'projectlist-item-editor', onClick: _this3.openEditor.bind(_this3, project) },
-          'go to editor'
+          'open editor'
         ),
         React.createElement(
           'a',
