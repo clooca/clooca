@@ -21,7 +21,6 @@ clienr/server両方をプラグイン化できます。
 
 ## Quick Start
 
-* こちらは未実装です
 
 1. ```sudo npm install -g clooca```
 2. ```clooca```
