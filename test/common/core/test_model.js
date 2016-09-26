@@ -21,10 +21,10 @@ describe('common/model', function() {
 
     it('should success to get model', function () {
         var modelInterface = new ModelInterface();
-        modelInterface.loadMetaModel( 'classdiagram', require('../../assets/classdiagram/classdiagram.json') ).then(function(content) {
-          return modelInterface.loadModel( require('../../assets/classdiagram/bookstore.json') );
+        modelInterface.loadModel( 'classdiagram', require('../../assets/classdiagram/classdiagram.json'), 'r' ).then(function(content) {
+          return modelInterface.loadModel( 'bookstore', require('../../assets/classdiagram/bookstore.json'), 'w' );
         }).then(function(content) {
-            var target = modelInterface.getRawModel().get('contents').first();
+            var target = modelInterface.model.get('contents').first();
             assert(
                 target.eClass.get('name') == "Class Diagram"
             );
