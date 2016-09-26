@@ -32,8 +32,10 @@ var CreateModal = React.createClass({
   },
 
   okModal: function() {
-    var model = clooca.getModelInterface().getRawModel();
     var resourceSet = clooca.getModelInterface().getResourceSet();
+    var model = resourceSet.get('resources').filter((r)=>{
+      return r.get('uri') == this.props.uri;
+    })[0];
   	var name = this.refs.name.value;
     var eClassName = this.refs.eClass.value;
     var eClass = resourceSet.elements('EClass').filter((_eclass) => {

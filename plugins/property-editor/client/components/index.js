@@ -13,20 +13,18 @@ let PropertyEditor = React.createClass({
     var setState = this.setState.bind(this);
 
     var modelInterface = clooca.getModelInterface();
-    var model = modelInterface.getRawModel();
     var resourceSet = modelInterface.getResourceSet();
-    model.on('change', function(f) {
-      setState({
-        model: f,
-      });
-    });
     setState({
-      model: model.get('contents').first(),
       resourceSet: resourceSet
     });
-    this.props.propertyEditor.on('select', function(object) {
+    this.props.propertyEditor.on('select', function(model) {
       setState({
-        model: object
+        model: model
+      });
+      model.on('change', function(f) {
+        setState({
+          model: model
+        });
       });
       return true;
     });

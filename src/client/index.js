@@ -1,10 +1,12 @@
 var React = require('react');
 var ReactDOM = require('react-dom');
 
-var CoreComponent = require('./components/core');
+var IndexComponent = require('./components');
 var pluginLoader = require('./pluginLoader');
 var Clooca = require('./clooca');
 var registry = require('../common/core/registry');
+
+var project = require('../common/core/project');
 
 var clooca = new Clooca();
 window.clooca = clooca;
@@ -16,29 +18,24 @@ let cc = clooca.getCC();
 
 clooca.getCC().request('clooca', 'getSettings', {}).then((_settings) => {
 	clooca.setSettings(_settings);
-	var loadTasks = clooca.settings.requiredModels.map((requiredModel)=>{
-		return function() {
-		    return cc.request('clooca', 'findEcoreModel', {url: requiredModel.location}).then((model)=>{
-		    	return modelInterface.loadModel2( requiredModel.uri, model );
-		    });
-		}
-	});
-	return loadTasks.reduce(function (a, b) {
-		return a.then(b);
-	}, Promise.resolve(null));
-}).then(function(content) {
-  return clooca.getStorage().load('default');
-}).then(function(modelJson) {
-  if(modelJson)
-    return modelInterface.loadModel(modelJson);
-  else
-    return new Promise((resolve, reject)=>{resolve()});
+	return project.init(clooca);
+}).then(()=>{
+	var mainEl = (<IndexComponent/>);
+	ReactDOM.render(mainEl, document.getElementById('main'));
+}).catch((err) => {
+	console.error(err.stack);
+});
+
+/*
+clooca.getCC().request('clooca', 'getSettings', {}).then((_settings) => {
+	clooca.setSettings(_settings);
+	return project.load(clooca, 'bookstore');
 }).then(function(content) {
 	return pluginLoader();
 }).then((pluginNames) => {
-	console.log(pluginNames);
 	var mainEl = (<div><CoreComponent pluginNames={pluginNames}></CoreComponent></div>);
 	ReactDOM.render(mainEl, document.getElementById('main'));
 }).catch((err) => {
 	console.error(err.stack);
 });
+*/

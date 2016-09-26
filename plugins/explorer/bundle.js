@@ -20763,7 +20763,7 @@ module.exports = require('./lib/React');
 'use strict';
 
 var React = require('react');
-var ExplorerItem = require('./item');
+var Resource = require('./resource');
 var transformer = require('../../transformer');
 
 var ExplorerComponent = React.createClass({
@@ -20771,24 +20771,21 @@ var ExplorerComponent = React.createClass({
 
 
   getInitialState: function getInitialState() {
-    return {
-      model: []
-    };
+    return {};
   },
 
   componentWillMount: function componentWillMount() {
     var setState = this.setState.bind(this);
     var modelInterface = clooca.getModelInterface();
-    var model = modelInterface.getRawModel();
     var resourceSet = modelInterface.getResourceSet();
-
-    model.on('add remove change', function (f) {
+    modelInterface.on('model.change', function (resource) {
       setState({
-        model: modelInterface.getRawModel().get('contents')
+        resource: resource,
+        resourceSet: resourceSet
       });
     });
     setState({
-      model: model.get('contents'),
+      resource: modelInterface.getCurrentModel(),
       resourceSet: resourceSet
     });
   },
@@ -20802,40 +20799,31 @@ var ExplorerComponent = React.createClass({
   addObject: function addObject() {
     var cc = clooca.getCC();
     cc.request('clooca', 'modal', {
-      isOpenAddObjectModal: true
+      isOpenAddObjectModal: true,
+      uri: this.state.resource.get('uri')
     }).then(function (_settings) {});
   },
 
   render: function render() {
-    var _this = this;
-
-    var content = React.createElement('div', null);
-    if (this.state.model) {
-      content = this.state.model.map(function (model) {
-        return React.createElement(ExplorerItem, { item: model, resourceSet: _this.state.resourceSet });
-      });
-    } else {
-      content = React.createElement(
+    return React.createElement(
+      'div',
+      null,
+      this.state.resource ? React.createElement(Resource, { resource: this.state.resource, resourceSet: this.state.resourceSet }) : React.createElement(
         'div',
         null,
         React.createElement(
           'a',
-          { style: { cursor: 'pointer', color: '#fff' }, onClick: this.addObject },
+          { style: { cursor: 'pointer', color: '#333' }, onClick: this.addObject },
           '最初のオブジェクトを作成する。'
         )
-      );
-    }
-    return React.createElement(
-      'div',
-      null,
-      content
+      )
     );
   }
 });
 
 module.exports = ExplorerComponent;
 
-},{"../../transformer":175,"./item":173,"react":171}],173:[function(require,module,exports){
+},{"../../transformer":176,"./resource":174,"react":171}],173:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -20910,6 +20898,7 @@ var ExplorerItem = React.createClass({
         return React.createElement(ExplorerItem, { key: child.get('name'), depth: offset + 12, item: child, resourceSet: resourceSet });
       }));
     }, []);
+    var isLeaf = ExplorerItems.length == 0;
 
     return React.createElement(
       'div',
@@ -20917,7 +20906,7 @@ var ExplorerItem = React.createClass({
       React.createElement(
         'div',
         { className: 'tree-item' },
-        React.createElement('div', { className: this.state.hidden ? 'tree-item-head tree-item-head-hidden' : 'tree-item-head tree-item-head-show', onClick: this.changeMode }),
+        isLeaf ? React.createElement('div', null) : React.createElement('div', { className: this.state.hidden ? 'tree-item-head tree-item-head-hidden' : 'tree-item-head tree-item-head-show', onClick: this.changeMode }),
         React.createElement(
           'div',
           { className: 'tree-item-title', onClick: this.select },
@@ -20945,7 +20934,96 @@ var ExplorerItem = React.createClass({
 
 module.exports = ExplorerItem;
 
-},{"../../transformer":175,"react":171}],174:[function(require,module,exports){
+},{"../../transformer":176,"react":171}],174:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var ExplorerItem = require('./item');
+var transformer = require('../../transformer');
+
+var ExplorerComponent = React.createClass({
+  displayName: 'ExplorerComponent',
+
+
+  getInitialState: function getInitialState() {
+    return {
+      model: []
+    };
+  },
+
+  componentWillMount: function componentWillMount() {
+    var _this = this;
+
+    var setState = this.setState.bind(this);
+
+    this.props.resource.on('add remove change', function (f) {
+      setState({
+        model: _this.props.resource.get('contents')
+      });
+    });
+    setState({
+      model: this.props.resource.get('contents')
+    });
+  },
+
+  componentWillReceiveProps: function componentWillReceiveProps(nextProps) {
+    var setState = this.setState.bind(this);
+    console.log(nextProps);
+    //this.props.resource.off('add remove change');
+    nextProps.resource.on('add remove change', function (f) {
+      setState({
+        model: nextProps.resource.get('contents')
+      });
+    });
+    setState({
+      model: nextProps.resource.get('contents')
+    });
+  },
+
+  componentDidMount: function componentDidMount() {},
+
+  componentDidUpdate: function componentDidUpdate() {},
+
+  componentWillUnmount: function componentWillUnmount() {},
+
+  addObject: function addObject() {
+    var cc = clooca.getCC();
+    cc.request('clooca', 'modal', {
+      isOpenAddObjectModal: true,
+      uri: this.props.resource.get('uri')
+    }).then(function (_settings) {});
+  },
+
+  render: function render() {
+    var _this2 = this;
+
+    var content = React.createElement('div', null);
+    if (this.state.model && this.state.model.size() > 0) {
+      content = this.state.model.map(function (model) {
+        return React.createElement(ExplorerItem, { item: model, resourceSet: _this2.props.resourceSet });
+      });
+    } else {
+      content = React.createElement(
+        'div',
+        null,
+        React.createElement(
+          'a',
+          { style: { cursor: 'pointer', color: '#333' }, onClick: this.addObject },
+          '最初のオブジェクトを作成する。'
+        )
+      );
+    }
+    return React.createElement(
+      'div',
+      null,
+      content
+    );
+  }
+});
+
+module.exports = ExplorerComponent;
+
+},{"../../transformer":176,"./item":173,"react":171}],175:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -20962,7 +21040,7 @@ var mainEl = React.createElement(
 );
 ReactDOM.render(mainEl, document.getElementById('main'));
 
-},{"./components/explorer":172,"react":171,"react-dom":28}],175:[function(require,module,exports){
+},{"./components/explorer":172,"react":171,"react-dom":28}],176:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -21000,4 +21078,4 @@ module.exports = {
 	}
 };
 
-},{}]},{},[174]);
+},{}]},{},[175]);

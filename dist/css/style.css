@@ -3,13 +3,77 @@ html, body{
 	padding: 0;
 	height: 100%;
 	width: 100%;
-    background-color: #171515;
+    background-image: linear-gradient(0deg,#fff,#eff0f2);
     color: #fff;
 }
 
+a {
+    color: #a0a0f0;
+}
+
+/* projectlist */
+
+.projectlist-wrapper {
+    padding: 12px;
+}
+
+.projectlist-item {
+    color:#111;
+    margin: 6px;
+    padding: 16px 8px;
+    min-width: 96%;
+    max-width: 96%;
+    border:1px solid #ccc;
+    background-color:#fff;
+}
+
+.projectlist-item:hover {
+    background-color:#f0f0f0;
+}
+
+.projectlist-item-title {
+    color: #333;
+    width: 120px;
+    font-size: 18px;
+    font-weight: 400;
+    float: left;
+}
+
+.projectlist-item-editor {
+    color: #777;
+    position: absolute;
+    right: 160px;
+    cursor: pointer;
+    float: left;
+}
+
+.projectlist-item-delete {
+    color: #c54;
+    position: absolute;
+    right: 60px;
+    cursor: pointer;
+    float: left;
+}
+
+.projectlist-item .projectlist-item-delete {
+    opacity: 0;
+}
+
+.projectlist-item:hover .projectlist-item-delete {
+    opacity: 1;
+}
+
+.projectlist-item-clear {
+    overflow:hidden;
+    clear:both;
+}
+
+
+/* editor */
+
 .core-pluginmenu {
 	float: left;
-	width: 220px;
+	width: 240px;
 	margin: 8px;
 	padding: 6px;
 	border: solid 1px #555;
@@ -230,4 +294,16 @@ html, body{
 }
 
 /*End of Loading Animation*/
+
+/* settings */
+
+.settings-wrapper {
+    color: #333;
+    margin: 12px;
+}
+
+.settings-formitem {
+    
+}
+
 

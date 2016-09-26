@@ -1,5 +1,8 @@
 var React = require('react');
 
+var project = require('../../../common/core/project');
+var pluginLoader = require('../../pluginLoader');
+
 var PluginItem = require('../plugin/item');
 var TabComponent = require('../tab');
 var PluginPanel = require('../plugin/panel');
@@ -16,12 +19,20 @@ let CoreComponent = React.createClass({
 
   getInitialState: function () {
     return {
-    	plugin: "explorer"
+      pluginNames: []
     };
   },
 
   componentWillMount: function() {
   	let setState = this.setState.bind(this);
+    console.log(this.props.params);
+    project.load(clooca, this.props.params.projectId).then(()=>{
+      return pluginLoader();
+    }).then((pluginNames)=>{
+      setState({
+        pluginNames: pluginNames
+      })
+    });
 
     EditorStore.observe((data) => {
       setState({
@@ -49,13 +60,9 @@ let CoreComponent = React.createClass({
   render: function () {
     var self = this;
   	var content = (<div className="loading-animation"/>);
-    var pluginList = this.props.pluginNames.map(function(pluginName) {
-      return (<PluginItem pluginName={pluginName} onClick={self.changePlugin} ></PluginItem>)
-    });
-
     return (
     	<div>
-        <Header pluginNames={this.props.pluginNames} editorSettings={this.state.editorSettings}></Header>
+        <Header pluginNames={this.state.pluginNames} editorSettings={this.state.editorSettings}></Header>
         <SplitPane split="vertical" minSize={150} defaultSize={200}>
           <div>
             <PluginPanel plugin="explorer"></PluginPanel>

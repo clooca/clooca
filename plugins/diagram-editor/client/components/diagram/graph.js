@@ -1,5 +1,6 @@
 var React = require('react');
 var GNode = require('./gnode');
+var Cursor = require('./cursor');
 
 var DRAG_MOVE = 1;
 
@@ -12,16 +13,6 @@ let Graph = React.createClass({
 
   componentWillMount: function() {
     var setState = this.setState.bind(this);
-    var modelInterface = clooca.getModelInterface();
-    var model = modelInterface.getRawModel();
-    model.on('change', function(f) {
-      setState({
-        model: model.get('contents').first(),
-      });
-    });
-    setState({
-      model: model.get('contents').first()
-    });
   },
 
   componentDidMount: function () {
@@ -34,11 +25,19 @@ let Graph = React.createClass({
   },
 
   render: function () {
-    if(!this.state.model) return(<div/>);
-    var model = this.state.model;
-    var gnodes = model.get('classes').map(function(_class) {
-      return _class.get('name')
-    });
+    if(!this.props.model || !this.props.diagram) return(<div/>);
+    var model = this.props.model;
+    var diagram = this.props.diagram;
+    console.log(diagram);
+    let nodes = diagram.get('nodes');
+    let gnodes = nodes.map( (node)=>{return node;} ).reduce((acc, node) => {
+      let metaElement = node.get('metaElement');
+      let containFeature = node.get('containFeature');
+      console.log(acc, node, containFeature);
+      return acc.concat(model.get(containFeature.get('name') || 'classes').map(function(_class) {
+        return _class.get('name')
+      }));
+    }, []);
   	var gnodeElems = gnodes.map(function(id) {
   		return (<GNode key={"gnode-"+id} name={id}></GNode>);
   	});

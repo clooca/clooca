@@ -3,17 +3,17 @@ var fs = require('fs');
 
 module.exports = function(settings) {
 	return {
-		save: function(modelId, content) {
+		save: function(bucket, key, content) {
 			return new Promise((resolve, reject) => {
-				fs.writeFile( path.join(settings.userDir, modelId + '.json'), JSON.stringify(content), function(err, data) {
+				fs.writeFile( path.join(settings.userDir, bucket, key + '.json'), JSON.stringify(content), function(err, data) {
 					if(err) return reject(err);
 					resolve(data);
 				});
 			});
 		},
-		load: function(modelId) {
+		load: function(bucket, key) {
 			return new Promise((resolve, reject) => {
-				fs.readFile(path.join(settings.userDir, modelId + '.json'), function(err, data) {
+				fs.readFile(path.join(settings.userDir, bucket, key + '.json'), function(err, data) {
 					if(err) return reject(err);
 					resolve( JSON.parse(data) );
 				});

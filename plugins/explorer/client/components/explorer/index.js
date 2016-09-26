@@ -1,28 +1,26 @@
 var React = require('react');
-var ExplorerItem = require('./item');
+var Resource = require('./resource');
 var transformer = require('../../transformer');
 
 let ExplorerComponent = React.createClass({
 
   getInitialState: function () {
     return {
-      model: []
     };
   },
 
   componentWillMount: function() {
     var setState = this.setState.bind(this);
     var modelInterface = clooca.getModelInterface();
-    var model = modelInterface.getRawModel();
     var resourceSet = modelInterface.getResourceSet();
-
-    model.on('add remove change', function(f) {
+    modelInterface.on('model.change', function(resource) {
       setState({
-        model: modelInterface.getRawModel().get('contents')
+        resource: resource,
+        resourceSet: resourceSet
       });
     });
     setState({
-      model: model.get('contents'),
+      resource: modelInterface.getCurrentModel(),
       resourceSet: resourceSet
     });
   },
@@ -39,23 +37,17 @@ let ExplorerComponent = React.createClass({
   addObject: function() {
     let cc = clooca.getCC();
     cc.request('clooca', 'modal', {
-      isOpenAddObjectModal: true
+      isOpenAddObjectModal: true,
+      uri: this.state.resource.get('uri')
     }).then((_settings) => {
     });
   },
 
   render: function () {
-    let content = (<div/>);
-    if(this.state.model) {
-      content = this.state.model.map((model)=>{
-        return (<ExplorerItem item={model} resourceSet={this.state.resourceSet}></ExplorerItem>)
-      });
-    }else{
-      content = (<div><a style={{cursor:'pointer', color:'#fff'}} onClick={this.addObject}>最初のオブジェクトを作成する。</a></div>);
-    }
     return (
       <div>
-      {content}
+      {this.state.resource?(<Resource resource={this.state.resource} resourceSet={this.state.resourceSet}></Resource>):
+      (<div><a style={{cursor:'pointer', color:'#333'}} onClick={this.addObject}>最初のオブジェクトを作成する。</a></div>)}
       </div>
     );
   }

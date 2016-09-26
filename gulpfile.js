@@ -53,6 +53,7 @@ gulp.task('plugins', function () {
   buildPlugin('diagram-editor', true);
   buildPlugin('code-generator', true);
   buildPlugin('simulator', true);
+  buildPlugin('gme', true);
 });
 
 gulp.task('watch', ['plugins'], function () {

@@ -1,0 +1,21 @@
+{
+  "name": "classdiagram(sample)",
+  "required": [
+    {
+      "uri": "http://www.eclipse.org/emf/2002/Ecore"
+    },
+    {
+      "uri": "https://raw.githubusercontent.com/clooca/model-examples/master/examples/diagrameditor/metamodel.json"
+    }
+  ],
+  "models": [
+    {
+      "uri": "https://raw.githubusercontent.com/clooca/model-examples/master/examples/classdiagram/metamodel.json",
+      "import": true
+    },
+    {
+      "uri": "https://raw.githubusercontent.com/clooca/model-examples/master/examples/diagrameditor/classdiagram.json",
+      "import": true
+    }
+  ]
+}

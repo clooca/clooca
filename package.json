@@ -39,6 +39,7 @@
     "react": "^15.3.0",
     "react-dom": "^15.3.0",
     "react-modal": "^1.4.0",
+    "react-router": "^2.8.1",
     "react-split-pane": "^0.1.44",
     "react-tabs": "^0.7.0",
     "uuid": "^2.0.2",

@@ -119,7 +119,7 @@ let FormItem = React.createClass({
       inputElem = (<FormList meta={meta} list={item}></FormList>);
     }
     return (
-    	<div style={{overflow:'hidden', clear:'hidden',borderBottom:'1px solid #555'}}><span style={{float:'left',width:'200px'}}>{label}</span><div style={{float:'left'}}>{inputElem}</div></div>
+    	<div style={{overflow:'hidden', clear:'hidden',borderBottom:'1px solid #777'}}><span style={{float:'left',width:'200px'}}>{label}</span><div style={{float:'left'}}>{inputElem}</div></div>
     );
   }
 });

@@ -75,11 +75,12 @@ let ExplorerItem = React.createClass({
         return (<ExplorerItem key={child.get('name')} depth={offset+12} item={child} resourceSet={resourceSet}></ExplorerItem>)
       }))
   	}, []);
+    var isLeaf = (ExplorerItems.length == 0);
 
     return (
     	<div style={style}>
         <div className="tree-item">
-          <div className={this.state.hidden?'tree-item-head tree-item-head-hidden':'tree-item-head tree-item-head-show'} onClick={this.changeMode}></div>
+          {isLeaf?(<div/>):(<div className={this.state.hidden?'tree-item-head tree-item-head-hidden':'tree-item-head tree-item-head-show'} onClick={this.changeMode}></div>)}
           <div className="tree-item-title" onClick={this.select}>{item.get('name')}</div>
           <div className="tree-item-add" onClick={this.addInstance}>+</div>
           <div className="tree-item-add" onClick={this.deleteInstance}>-</div>

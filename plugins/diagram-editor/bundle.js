@@ -20763,6 +20763,47 @@ module.exports = require('./lib/React');
 'use strict';
 
 var React = require('react');
+
+var ToolPallet = require('./tool');
+var GraphComponent = require('./graph');
+
+var Cursor = React.createClass({
+  displayName: 'Cursor',
+
+
+  getInitialState: function getInitialState() {
+    return {
+      x: 0,
+      y: 0
+    };
+  },
+
+  componentWillMount: function componentWillMount() {
+    var setState = this.setState.bind(this);
+  },
+
+  componentDidMount: function componentDidMount() {},
+
+  componentDidUpdate: function componentDidUpdate() {},
+
+  componentWillUnmount: function componentWillUnmount() {},
+
+  render: function render() {
+    var transform = "translate(" + this.state.x + "," + this.state.y + ")";
+    return React.createElement(
+      'g',
+      { transform: transform },
+      React.createElement('rect', { width: '300', height: '100', style: { "fill": "none", "strokeWidth": 3, "stroke": "rgb(100,150,100)" } })
+    );
+  }
+});
+
+module.exports = Cursor;
+
+},{"./graph":174,"./tool":176,"react":171}],173:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
 var Point2D = require('../../math/math2d').Point2D;
 var DRAG_NONE = 0;
 var DRAG_MOVE = 1;
@@ -20858,11 +20899,12 @@ var GNode = React.createClass({
 
 module.exports = GNode;
 
-},{"../../math/math2d":175,"react":171}],173:[function(require,module,exports){
+},{"../../math/math2d":178,"react":171}],174:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
 var GNode = require('./gnode');
+var Cursor = require('./cursor');
 
 var DRAG_MOVE = 1;
 
@@ -20876,16 +20918,6 @@ var Graph = React.createClass({
 
   componentWillMount: function componentWillMount() {
     var setState = this.setState.bind(this);
-    var modelInterface = clooca.getModelInterface();
-    var model = modelInterface.getRawModel();
-    model.on('change', function (f) {
-      setState({
-        model: model.get('contents').first()
-      });
-    });
-    setState({
-      model: model.get('contents').first()
-    });
   },
 
   componentDidMount: function componentDidMount() {},
@@ -20895,11 +20927,21 @@ var Graph = React.createClass({
   componentWillUnmount: function componentWillUnmount() {},
 
   render: function render() {
-    if (!this.state.model) return React.createElement('div', null);
-    var model = this.state.model;
-    var gnodes = model.get('classes').map(function (_class) {
-      return _class.get('name');
-    });
+    if (!this.props.model || !this.props.diagram) return React.createElement('div', null);
+    var model = this.props.model;
+    var diagram = this.props.diagram;
+    console.log(diagram);
+    var nodes = diagram.get('nodes');
+    var gnodes = nodes.map(function (node) {
+      return node;
+    }).reduce(function (acc, node) {
+      var metaElement = node.get('metaElement');
+      var containFeature = node.get('containFeature');
+      console.log(acc, node, containFeature);
+      return acc.concat(model.get(containFeature.get('name') || 'classes').map(function (_class) {
+        return _class.get('name');
+      }));
+    }, []);
     var gnodeElems = gnodes.map(function (id) {
       return React.createElement(GNode, { key: "gnode-" + id, name: id });
     });
@@ -20921,7 +20963,103 @@ var Graph = React.createClass({
 
 module.exports = Graph;
 
-},{"./gnode":172,"react":171}],174:[function(require,module,exports){
+},{"./cursor":172,"./gnode":173,"react":171}],175:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+
+var ToolPallet = require('./tool');
+var GraphComponent = require('./graph');
+
+var DiagramEditor = React.createClass({
+  displayName: 'DiagramEditor',
+
+
+  getInitialState: function getInitialState() {
+    return {};
+  },
+
+  componentWillMount: function componentWillMount() {
+    var setState = this.setState.bind(this);
+    var modelInterface = clooca.getModelInterface();
+    var model = modelInterface.getRawModel();
+    var resourceSet = modelInterface.getResourceSet();
+    var diagram = resourceSet.elements('Diagram')[0];
+    var metaElement = diagram.get('metaElement');
+
+    model.on('change', function (f) {
+      setState({
+        model: model.get('contents').first()
+      });
+    });
+    setState({
+      model: model.get('contents').first(),
+      diagram: diagram
+    });
+  },
+
+  componentDidMount: function componentDidMount() {},
+
+  componentDidUpdate: function componentDidUpdate() {},
+
+  componentWillUnmount: function componentWillUnmount() {},
+
+  render: function render() {
+    console.log(this.state);
+    return React.createElement(
+      'div',
+      null,
+      React.createElement(ToolPallet, { tools: [] }),
+      React.createElement(GraphComponent, { model: this.state.model, diagram: this.state.diagram })
+    );
+  }
+});
+
+module.exports = DiagramEditor;
+
+},{"./graph":174,"./tool":176,"react":171}],176:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+
+var ToolList = React.createClass({
+  displayName: 'ToolList',
+
+
+  getInitialState: function getInitialState() {
+    return {};
+  },
+
+  componentWillMount: function componentWillMount() {
+    var setState = this.setState.bind(this);
+  },
+
+  componentDidMount: function componentDidMount() {},
+
+  componentDidUpdate: function componentDidUpdate() {},
+
+  componentWillUnmount: function componentWillUnmount() {},
+
+  render: function render() {
+    var tools = this.props.tools;
+    var toolDoms = tools.map(function (tool) {
+      return React.createElement(
+        'div',
+        null,
+        tool.name
+      );
+    });
+    return React.createElement(
+      'div',
+      null,
+      toolDoms
+    );
+  }
+});
+
+module.exports = ToolList;
+
+},{"react":171}],177:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -20929,7 +21067,7 @@ var ReactDOM = require('react-dom');
 
 window.clooca = window.parent.window.clooca;
 
-var Component = require('./components/diagram/graph');
+var Component = require('./components/diagram');
 
 var mainEl = React.createElement(
   'div',
@@ -20938,7 +21076,7 @@ var mainEl = React.createElement(
 );
 ReactDOM.render(mainEl, document.getElementById('main'));
 
-},{"./components/diagram/graph":173,"react":171,"react-dom":28}],175:[function(require,module,exports){
+},{"./components/diagram":175,"react":171,"react-dom":28}],178:[function(require,module,exports){
 "use strict";
 
 function Point2D(x, y) {
@@ -21339,4 +21477,4 @@ module.exports = {
 	Rectangle2D: Rectangle2D
 };
 
-},{}]},{},[174]);
+},{}]},{},[177]);

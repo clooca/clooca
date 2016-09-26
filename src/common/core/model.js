@@ -3,6 +3,7 @@ var uuid = require('uuid');
 var EventEmitter2 = require('eventemitter2').EventEmitter2;
 
 function ModelInterface(server) {
+	this.loadedModels = [];
 	this.resourceSet = Ecore.ResourceSet.create();
 	this.server = new EventEmitter2({
 		wildcard: true,
@@ -27,7 +28,22 @@ ModelInterface.prototype.getResourceSet = function() {
 	return this.resourceSet;
 };
 
-ModelInterface.prototype.loadMetaModel = function(uri, data) {
+ModelInterface.prototype.getLoadedList = function() {
+	return this.loadedModels;
+};
+
+ModelInterface.prototype.setCurrentModel = function(uri) {
+	this.model = this.resourceSet.get('resources').filter((r)=>{
+		return r.get('uri') == uri;
+	})[0];
+	this.emit('model.change', this.model);
+};
+
+ModelInterface.prototype.getCurrentModel = function() {
+	return this.model;
+};
+
+ModelInterface.prototype.loadModel = function(uri, data, mode) {
 	var self = this;
 	return new Promise(function(resolve, reject) {
 		var callback = function(model, err) {
@@ -35,44 +51,9 @@ ModelInterface.prototype.loadMetaModel = function(uri, data) {
 		    	reject(err);
 		        return;
 		    }
-		    self.metamodel = model;
-			self.fireUpdate();
-			resolve(model);
-		};
-		if(uri == 'http://www.eclipse.org/emf/2002/Ecore') {
-			self.metamodel = self.resourceSet.create({ uri: uri });
-			self.metamodel.add(Ecore.EcorePackage);
-			resolve(Ecore.EcorePackage);
-		}else{
-			self.resourceSet.create({ uri: uri }).load(data, callback);
-		}
-	})
-}
-
-
-ModelInterface.prototype.loadModel = function(model) {
-	var self = this;
-	return new Promise(function(resolve, reject) {
-		var callback = function(model, err) {
-		    if (err) {
-		    	reject(err);
-		        return;
-		    }
-		    self.model = model;
-			self.fireUpdate();
-			resolve(model);
-		};
-		self.resourceSet.create({ uri: 'model.json' }).load(model, callback);
-	});
-}
-
-ModelInterface.prototype.loadModel2 = function(uri, data) {
-	var self = this;
-	return new Promise(function(resolve, reject) {
-		var callback = function(model, err) {
-		    if (err) {
-		    	reject(err);
-		        return;
+		    if(mode == "w") {
+		    	self.setCurrentModel(uri);
+		    	self.loadedModels.push({uri:uri});
 		    }
 			resolve(model);
 		};
@@ -81,13 +62,25 @@ ModelInterface.prototype.loadModel2 = function(uri, data) {
 			resource.add(Ecore.EcorePackage);
 			resolve(Ecore.EcorePackage);
 		}else{
-			self.resourceSet.create({ uri: uri }).load(data, callback);
+			if(data) {
+				self.resourceSet.create({ uri: uri }).load(data, callback);
+			}else{
+				var model = self.resourceSet.create({ uri: uri });
+			    if(mode == "w") {
+			    	self.setCurrentModel(uri);
+			    	self.loadedModels.push({uri:uri});
+			    }
+				resolve(model);
+			}
 		}
 	});
 }
 
 ModelInterface.prototype.getModelJSON = function() {
-	return this.model.to(Ecore.JSON);
+	return {
+		uri: this.model.get('uri'),
+		data: this.model.to(Ecore.JSON)
+	}
 }
 
 ModelInterface.prototype.emit = function(event, args) {

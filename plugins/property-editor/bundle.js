@@ -20886,7 +20886,7 @@ var FormItem = React.createClass({
     }
     return React.createElement(
       'div',
-      { style: { overflow: 'hidden', clear: 'hidden', borderBottom: '1px solid #555' } },
+      { style: { overflow: 'hidden', clear: 'hidden', borderBottom: '1px solid #777' } },
       React.createElement(
         'span',
         { style: { float: 'left', width: '200px' } },
@@ -21020,20 +21020,18 @@ var PropertyEditor = React.createClass({
     var setState = this.setState.bind(this);
 
     var modelInterface = clooca.getModelInterface();
-    var model = modelInterface.getRawModel();
     var resourceSet = modelInterface.getResourceSet();
-    model.on('change', function (f) {
-      setState({
-        model: f
-      });
-    });
     setState({
-      model: model.get('contents').first(),
       resourceSet: resourceSet
     });
-    this.props.propertyEditor.on('select', function (object) {
+    this.props.propertyEditor.on('select', function (model) {
       setState({
-        model: object
+        model: model
+      });
+      model.on('change', function (f) {
+        setState({
+          model: model
+        });
       });
       return true;
     });

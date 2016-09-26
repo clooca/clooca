@@ -1,0 +1,25 @@
+{
+  "name": "bookstore(sample)",
+  "required": [
+    {
+      "uri": "https://raw.githubusercontent.com/clooca/model-examples/master/examples/classdiagram/metamodel.json"
+    },
+    {
+      "uri": "https://raw.githubusercontent.com/clooca/model-examples/master/examples/diagrameditor/metamodel.json"
+    },
+    {
+      "uri": "https://raw.githubusercontent.com/clooca/model-examples/master/examples/diagrameditor/classdiagram.json"
+    }
+  ],
+  "models": [
+    {
+      "uri": "syuhei/samples/bookstore"
+    }
+  ],
+  "plugin": {
+    "diagrameditor": {
+      "name": "diagrameditor",
+      "define": "https://raw.githubusercontent.com/clooca/model-examples/master/examples/diagrameditor/classdiagram.json"
+    }
+  }
+}

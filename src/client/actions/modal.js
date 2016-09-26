@@ -2,6 +2,7 @@ var TabAction = {
 	open: function(params) {
 		this.store.update( {
 			isOpenAddContainmentModal:params.isOpenAddContainmentModal,
+			uri: params.uri,
 			isOpenAddObjectModal:params.isOpenAddObjectModal,
 			target: params.model,
 			resourceSet: params.resourceSet
