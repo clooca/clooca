@@ -57,8 +57,7 @@ let Header = React.createClass({
   },
 
   onAddObjectMenuSelected: function() {
-    let cc = clooca.getCC();
-    cc.request('clooca', 'modal', {
+    clooca.getPlugin('clooca').request('modal', {
       isOpenAddObjectModal: true
     }).then(() => {
     });

@@ -5,7 +5,7 @@ module.exports = {
 	init: function(clooca) {
 		return this.list(clooca).then((projects)=>{
 			if(projects.length == 0) {
-				return clooca.getCC().request('clooca', 'templateProject', {});
+				return clooca.getPlugin('clooca').request('templateProject', {});
 			}else{
 				return new Promise((resolve, reject)=>{resolve([]);});
 			}
@@ -30,7 +30,7 @@ module.exports = {
 						if(modelJson || requiredModel.uri == 'http://www.eclipse.org/emf/2002/Ecore') {
 							return modelInterface.loadModel(requiredModel.uri, modelJson, 'r');
 						}else{
-						    return clooca.getCC().request('clooca', 'findEcoreModel', {url: requiredModel.uri}).then((model)=>{
+						    return clooca.getPlugin('clooca').request('findEcoreModel', {url: requiredModel.uri}).then((model)=>{
 						    	return modelInterface.loadModel( requiredModel.uri, model, 'r');
 						    });
 						}
@@ -42,7 +42,7 @@ module.exports = {
 				return function() {
 					return repository.loadModel(storage, requiredModel.uri).then(function(modelJson) {
 						if(!modelJson && requiredModel.import) {
-						    return clooca.getCC().request('clooca', 'findEcoreModel', {url: requiredModel.uri}).then((model)=>{
+						    return clooca.getPlugin('clooca').request('findEcoreModel', {url: requiredModel.uri}).then((model)=>{
 						    	return modelInterface.loadModel( requiredModel.uri, model, 'w');
 						    });
 						}else{

@@ -20796,14 +20796,6 @@ var ExplorerComponent = React.createClass({
 
   componentWillUnmount: function componentWillUnmount() {},
 
-  addObject: function addObject() {
-    var cc = clooca.getCC();
-    cc.request('clooca', 'modal', {
-      isOpenAddObjectModal: true,
-      uri: this.state.resource.get('uri')
-    }).then(function (_settings) {});
-  },
-
   render: function render() {
     return React.createElement(
       'div',
@@ -20847,8 +20839,7 @@ var ExplorerItem = React.createClass({
   },
 
   addInstance: function addInstance() {
-    var cc = clooca.getCC();
-    cc.request('clooca', 'modal', {
+    clooca.getPlugin('clooca').request('modal', {
       isOpenAddContainmentModal: true,
       model: this.props.item,
       resourceSet: this.props.resourceSet
@@ -20856,7 +20847,6 @@ var ExplorerItem = React.createClass({
   },
 
   deleteInstance: function deleteInstance() {
-    var cc = clooca.getCC();
     var eContainer = this.props.item.eContainer;
     var eContainingFeature = this.props.item.eContainingFeature;
     eContainer.get(eContainingFeature.get('name')).remove(this.props.item);
@@ -20869,7 +20859,7 @@ var ExplorerItem = React.createClass({
   },
 
   select: function select() {
-    clooca.getCC().request('property', 'selectObject', this.props.item).then(function () {});
+    clooca.getPlugin('property').request('selectObject', this.props.item).then(function () {});
   },
 
   render: function render() {
@@ -20979,8 +20969,7 @@ var ExplorerComponent = React.createClass({
   componentWillUnmount: function componentWillUnmount() {},
 
   addObject: function addObject() {
-    var cc = clooca.getCC();
-    cc.request('clooca', 'modal', {
+    clooca.getPlugin('clooca').request('modal', {
       isOpenAddObjectModal: true,
       uri: this.props.resource.get('uri')
     }).then(function (_settings) {});

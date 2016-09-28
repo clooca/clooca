@@ -1,20 +1,21 @@
 var ajax = require('../utils/ajax');
 var registry = require('./registry');
 
-function MQ() {
-
+function PluginInterface(moduleName) {
+	this.moduleName = moduleName;
 }
 
-MQ.prototype.emit = function(first_argument) {
+PluginInterface.prototype.emit = function(first_argument) {
 	// body...
 };
 
-MQ.prototype.on = function(first_argument) {
+PluginInterface.prototype.on = function(first_argument) {
 	// body...
 };
 
 if ('browser' !== process.title) {
-	MQ.prototype.request = function(moduleName, methodName, params) {
+	PluginInterface.prototype.request = function(methodName, params) {
+		var moduleName = this.moduleName;
 		if(registry.getModule(moduleName).hasMethod(methodName)) {
 			return registry.getModule(moduleName).recvRequest(methodName, params);
 		}else{
@@ -22,7 +23,8 @@ if ('browser' !== process.title) {
 		}
 	};
 }else{
-	MQ.prototype.request = function(moduleName, methodName, params) {
+	PluginInterface.prototype.request = function(methodName, params) {
+		var moduleName = this.moduleName;
 		if(registry.getModule(moduleName).hasMethod(methodName)) {
 			return registry.getModule(moduleName).recvRequest(methodName, params);
 		}else{
@@ -40,4 +42,4 @@ if ('browser' !== process.title) {
 }
 
 
-module.exports = MQ;
+module.exports = PluginInterface;

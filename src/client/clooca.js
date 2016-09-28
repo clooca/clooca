@@ -1,13 +1,11 @@
 var ModelInterface = require('../common/core/model');
-var CC = require('../common/core/cc');
+var PluginInterface = require('../common/core/pluginInterface');
 var registry = require('../common/core/registry');
 var ModalAction = require('./actions/modal');
 var LocalStorage = require('../common/storage/adaptor/localStorage');
 
 function clooca() {
 	this.registerdPlugins = {};
-
-	this.cc = new CC();
 }
 
 clooca.prototype.createModelInterface = function() {
@@ -38,8 +36,8 @@ clooca.prototype.modal = function(params) {
 	});
 }
 
-clooca.prototype.getCC = function() {
-	return this.cc;
+clooca.prototype.getPlugin = function(name) {
+	return new PluginInterface(name);
 };
 
 clooca.prototype.getStorage = function() {

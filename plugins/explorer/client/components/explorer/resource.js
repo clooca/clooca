@@ -45,10 +45,9 @@ let ExplorerComponent = React.createClass({
 
   componentWillUnmount: function() {
   },
-
+  
   addObject: function() {
-    let cc = clooca.getCC();
-    cc.request('clooca', 'modal', {
+    clooca.getPlugin('clooca').request('modal', {
       isOpenAddObjectModal: true,
       uri: this.props.resource.get('uri')
     }).then((_settings) => {

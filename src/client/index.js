@@ -14,9 +14,8 @@ window.clooca = clooca;
 registry.addModule('clooca', clooca);
 
 let modelInterface = clooca.getModelInterface();
-let cc = clooca.getCC();
 
-clooca.getCC().request('clooca', 'getSettings', {}).then((_settings) => {
+clooca.getPlugin('clooca').request('getSettings', {}).then((_settings) => {
 	clooca.setSettings(_settings);
 	return project.init(clooca);
 }).then(()=>{

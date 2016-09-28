@@ -29,8 +29,7 @@ let ExplorerItem = React.createClass({
   },
 
   addInstance: function() {
-    let cc = clooca.getCC();
-    cc.request('clooca', 'modal', {
+    clooca.getPlugin('clooca').request('modal', {
       isOpenAddContainmentModal: true,
       model: this.props.item,
       resourceSet: this.props.resourceSet
@@ -39,7 +38,6 @@ let ExplorerItem = React.createClass({
   },
 
   deleteInstance: function() {
-    let cc = clooca.getCC();
     let eContainer = this.props.item.eContainer;
     let eContainingFeature = this.props.item.eContainingFeature;
     eContainer.get(eContainingFeature.get('name')).remove(this.props.item);
@@ -52,7 +50,7 @@ let ExplorerItem = React.createClass({
   },
 
   select: function() {
-    clooca.getCC().request('property', 'selectObject', this.props.item).then(() => {
+    clooca.getPlugin('property').request('selectObject', this.props.item).then(() => {
 
     });
   },

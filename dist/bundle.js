@@ -41359,15 +41359,13 @@ module.exports = TabAction;
 'use strict';
 
 var ModelInterface = require('../common/core/model');
-var CC = require('../common/core/cc');
+var PluginInterface = require('../common/core/pluginInterface');
 var registry = require('../common/core/registry');
 var ModalAction = require('./actions/modal');
 var LocalStorage = require('../common/storage/adaptor/localStorage');
 
 function clooca() {
 	this.registerdPlugins = {};
-
-	this.cc = new CC();
 }
 
 clooca.prototype.createModelInterface = function () {
@@ -41398,8 +41396,8 @@ clooca.prototype.modal = function (params) {
 	});
 };
 
-clooca.prototype.getCC = function () {
-	return this.cc;
+clooca.prototype.getPlugin = function (name) {
+	return new PluginInterface(name);
 };
 
 clooca.prototype.getStorage = function () {
@@ -41419,7 +41417,7 @@ clooca.prototype.registerPlugin = function (pluginName, pluginModule) {
 
 module.exports = clooca;
 
-},{"../common/core/cc":331,"../common/core/model":332,"../common/core/registry":334,"../common/storage/adaptor/localStorage":336,"./actions/modal":309}],312:[function(require,module,exports){
+},{"../common/core/model":331,"../common/core/pluginInterface":332,"../common/core/registry":334,"../common/storage/adaptor/localStorage":336,"./actions/modal":309}],312:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -41479,8 +41477,7 @@ var Header = React.createClass({
   },
 
   onAddObjectMenuSelected: function onAddObjectMenuSelected() {
-    var cc = clooca.getCC();
-    cc.request('clooca', 'modal', {
+    clooca.getPlugin('clooca').request('modal', {
       isOpenAddObjectModal: true
     }).then(function () {});
   },
@@ -42941,9 +42938,8 @@ window.clooca = clooca;
 registry.addModule('clooca', clooca);
 
 var modelInterface = clooca.getModelInterface();
-var cc = clooca.getCC();
 
-clooca.getCC().request('clooca', 'getSettings', {}).then(function (_settings) {
+clooca.getPlugin('clooca').request('getSettings', {}).then(function (_settings) {
 	clooca.setSettings(_settings);
 	return project.init(clooca);
 }).then(function () {
@@ -43042,52 +43038,6 @@ module.exports = {
 };
 
 },{}],331:[function(require,module,exports){
-(function (process){
-'use strict';
-
-var ajax = require('../utils/ajax');
-var registry = require('./registry');
-
-function MQ() {}
-
-MQ.prototype.emit = function (first_argument) {
-	// body...
-};
-
-MQ.prototype.on = function (first_argument) {
-	// body...
-};
-
-if ('browser' !== process.title) {
-	MQ.prototype.request = function (moduleName, methodName, params) {
-		if (registry.getModule(moduleName).hasMethod(methodName)) {
-			return registry.getModule(moduleName).recvRequest(methodName, params);
-		} else {
-			//TODO
-		}
-	};
-} else {
-	MQ.prototype.request = function (moduleName, methodName, params) {
-		if (registry.getModule(moduleName).hasMethod(methodName)) {
-			return registry.getModule(moduleName).recvRequest(methodName, params);
-		} else {
-			return ajax.get('/cc/' + moduleName + '/' + methodName, params, { res: 'json' }).then(function (data) {
-				return new Promise(function (resolve, reject) {
-					if (data.err) {
-						reject(data.err);
-						return;
-					}
-					resolve(data.content);
-				});
-			});
-		}
-	};
-}
-
-module.exports = MQ;
-
-}).call(this,require('_process'))
-},{"../utils/ajax":339,"./registry":334,"_process":80}],332:[function(require,module,exports){
 'use strict';
 
 var Ecore = require('ecore');
@@ -43199,7 +43149,57 @@ ModelInterface.prototype.fireUpdate = function (model) {
 
 module.exports = ModelInterface;
 
-},{"ecore":12,"eventemitter2":14,"uuid":306}],333:[function(require,module,exports){
+},{"ecore":12,"eventemitter2":14,"uuid":306}],332:[function(require,module,exports){
+(function (process){
+'use strict';
+
+var ajax = require('../utils/ajax');
+var registry = require('./registry');
+
+function PluginInterface(moduleName) {
+	this.moduleName = moduleName;
+}
+
+PluginInterface.prototype.emit = function (first_argument) {
+	// body...
+};
+
+PluginInterface.prototype.on = function (first_argument) {
+	// body...
+};
+
+if ('browser' !== process.title) {
+	PluginInterface.prototype.request = function (methodName, params) {
+		var moduleName = this.moduleName;
+		if (registry.getModule(moduleName).hasMethod(methodName)) {
+			return registry.getModule(moduleName).recvRequest(methodName, params);
+		} else {
+			//TODO
+		}
+	};
+} else {
+	PluginInterface.prototype.request = function (methodName, params) {
+		var moduleName = this.moduleName;
+		if (registry.getModule(moduleName).hasMethod(methodName)) {
+			return registry.getModule(moduleName).recvRequest(methodName, params);
+		} else {
+			return ajax.get('/cc/' + moduleName + '/' + methodName, params, { res: 'json' }).then(function (data) {
+				return new Promise(function (resolve, reject) {
+					if (data.err) {
+						reject(data.err);
+						return;
+					}
+					resolve(data.content);
+				});
+			});
+		}
+	};
+}
+
+module.exports = PluginInterface;
+
+}).call(this,require('_process'))
+},{"../utils/ajax":339,"./registry":334,"_process":80}],333:[function(require,module,exports){
 'use strict';
 
 var projectLoader = require('../../storage/project');
@@ -43211,7 +43211,7 @@ module.exports = {
 
 		return this.list(clooca).then(function (projects) {
 			if (projects.length == 0) {
-				return clooca.getCC().request('clooca', 'templateProject', {});
+				return clooca.getPlugin('clooca').request('templateProject', {});
 			} else {
 				return new Promise(function (resolve, reject) {
 					resolve([]);
@@ -43238,7 +43238,7 @@ module.exports = {
 						if (modelJson || requiredModel.uri == 'http://www.eclipse.org/emf/2002/Ecore') {
 							return modelInterface.loadModel(requiredModel.uri, modelJson, 'r');
 						} else {
-							return clooca.getCC().request('clooca', 'findEcoreModel', { url: requiredModel.uri }).then(function (model) {
+							return clooca.getPlugin('clooca').request('findEcoreModel', { url: requiredModel.uri }).then(function (model) {
 								return modelInterface.loadModel(requiredModel.uri, model, 'r');
 							});
 						}
@@ -43250,7 +43250,7 @@ module.exports = {
 				return function () {
 					return repository.loadModel(storage, requiredModel.uri).then(function (modelJson) {
 						if (!modelJson && requiredModel.import) {
-							return clooca.getCC().request('clooca', 'findEcoreModel', { url: requiredModel.uri }).then(function (model) {
+							return clooca.getPlugin('clooca').request('findEcoreModel', { url: requiredModel.uri }).then(function (model) {
 								return modelInterface.loadModel(requiredModel.uri, model, 'w');
 							});
 						} else {
