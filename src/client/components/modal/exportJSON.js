@@ -38,7 +38,7 @@ var ExportJSONModal = React.createClass({
   componentWillReceiveProps: function() {
     let modelJson = clooca.getModelInterface().getModelJSON();
     this.setState({
-      modelJson: JSON.stringify(modelJson.data)
+      modelJson: JSON.stringify(modelJson.data, null, 2)
     });
   },
 

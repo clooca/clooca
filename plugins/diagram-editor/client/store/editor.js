@@ -1,21 +1,5 @@
 var defaultData = {
 	selected: null
-	isOpenAddObjectModal: false,
-	isOpenAddContainmentModal: false,
-	tabs: [{
-		title: 'Property',
-		plugin: 'property-editor'
-		/*
-	},{
-		title: 'Graphical Modeling Editor',
-		plugin: 'gme'*/
-	},{
-		title: 'Diagram Editor',
-		plugin: 'diagram-editor'
-	},{
-		title: 'Code',
-		plugin: 'code-generator'
-	}]
 }
 
 module.exports = {

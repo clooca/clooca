@@ -39,7 +39,6 @@ let DiagramEditor = React.createClass({
   },
 
   render: function () {
-  	console.log(this.state);
     return (
     	<div>
     		<ToolPallet tools={[]}/>

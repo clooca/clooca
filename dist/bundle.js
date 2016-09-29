@@ -42363,7 +42363,7 @@ var ExportJSONModal = React.createClass({
   componentWillReceiveProps: function componentWillReceiveProps() {
     var modelJson = clooca.getModelInterface().getModelJSON();
     this.setState({
-      modelJson: JSON.stringify(modelJson.data)
+      modelJson: JSON.stringify(modelJson.data, null, 2)
     });
   },
 
@@ -42749,8 +42749,10 @@ var ProjectSettings = React.createClass({
   componentWillUnmount: function componentWillUnmount() {},
 
   save: function save() {
-    var settings = this.state.data;
-    project.saveProject(clooca.getStorage(), this.props.params.projectId, settings).then(function () {});
+    var settings = JSON.parse(this.refs.settings.value);
+    project.saveProject(clooca.getStorage(), this.props.params.projectId, settings).then(function () {}).catch(function (err) {
+      console.error(err);
+    });
   },
 
   onNameChange: function onNameChange(e) {

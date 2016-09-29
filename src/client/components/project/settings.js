@@ -34,8 +34,10 @@ let ProjectSettings = React.createClass({
   },
 
   save: function() {
-  	var settings = this.state.data;
+  	var settings = JSON.parse(this.refs.settings.value);
     project.saveProject(clooca.getStorage(), this.props.params.projectId, settings).then(()=>{
+    }).catch((err)=>{
+      console.error(err);
     });
   },
 

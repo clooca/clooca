@@ -1,5 +1,7 @@
 var React = require('react');
 var Point2D = require('../../math/math2d').Point2D;
+var selectorAction = require('../../actions/selector');
+
 var DRAG_NONE = 0;
 var DRAG_MOVE = 1;
 
@@ -7,8 +9,8 @@ let GNode = React.createClass({
 
   getInitialState: function () {
     return {
-      x:0,
-      y:0
+      x:this.props.node.get('x'),
+      y:this.props.node.get('y')
     };
   },
 
@@ -30,21 +32,20 @@ let GNode = React.createClass({
 
   onMouseDown: function(e) {
     console.log('onMouseDown');
-    this.offset = new Point2D(e.pageX-this.state.x, e.pageY-this.state.y)
-    console.log(this.offset);
+    this.offset = new Point2D(e.pageX-this.state.x, e.pageY-this.state.y);
     this.setState({
       dragMode: DRAG_MOVE
     });
-
+    selectorAction.select(this.props.id);
   },
 
   onMouseMove: function(e) {
-    console.log('onMouseMove');
+    //console.log('onMouseMove');
     if(this.state.dragMode == DRAG_MOVE) {
-      console.log( this.offset );
+      //console.log( this.offset );
       var currentPos = new Point2D(e.pageX, e.pageY);
       var dd = currentPos.sub(this.offset);
-      console.log(dd);
+      //console.log(dd);
       if(this.props.onMoved) {
         this.props.onMoved(dd);
       }
@@ -52,7 +53,8 @@ let GNode = React.createClass({
         x: dd.x,
         y: dd.y
       });
-
+      this.props.node.set('x', dd.x);
+      this.props.node.set('y', dd.y);
     }
 
   },
@@ -89,13 +91,14 @@ let GNode = React.createClass({
   },
 
   render: function () {
+    let node = this.props.node;
     var transform = "translate("+this.state.x+","+this.state.y+")"
     return (
       <g transform={transform}>
       <rect onClick={this.onClick} onMouseDown={this.onMouseDown} onMouseEnter={this.onMouseEnter} onMouseLeave={this.onMouseLeave} onMouseMove={this.onMouseMove}
       onMouseOut={this.onMouseOut} onMouseOver={this.onMouseOver} onMouseUp={this.onMouseUp}
-      width="300" height="100" style={{"fill":"rgb(255,255,250)","strokeWidth":3,"stroke":"rgb(0,0,0)"}} ></rect>
-      <text x="6" y="20">{this.props.name}</text>
+      width="200" height="100" style={{"fill":"rgb(255,255,250)","strokeWidth":3,"stroke":"rgb(0,0,0)"}} ></rect>
+      <text x="6" y="20">{node.get('name')}</text>
       </g>
     );
   }

@@ -20760,12 +20760,30 @@ module.exports = validateDOMNesting;
 module.exports = require('./lib/React');
 
 },{"./lib/React":54}],172:[function(require,module,exports){
+"use strict";
+
+var actions = {
+	select: function select(id) {
+		this.store.update({ selected: id });
+	},
+	rubberband: function rubberband(id) {
+		this.store.update({ rubberband: id });
+	},
+	register: function register(store) {
+		this.store = store;
+	}
+};
+
+module.exports = actions;
+
+},{}],173:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
 
 var ToolPallet = require('./tool');
 var GraphComponent = require('./graph');
+var selectorAction = require('../../actions/selector');
 
 var Cursor = React.createClass({
   displayName: 'Cursor',
@@ -20788,23 +20806,81 @@ var Cursor = React.createClass({
 
   componentWillUnmount: function componentWillUnmount() {},
 
+  onMouseDown: function onMouseDown() {
+    selectorAction.rubberband(this.props.selected);
+  },
+
   render: function render() {
-    var transform = "translate(" + this.state.x + "," + this.state.y + ")";
+    var target = this.props.selected;
+    var x = target.get('x') || 0;
+    var y = target.get('y') || 0;
+    var w = 200;
+    var h = 100;
+    var size = 20;
+    var offset = size + 2;
+    var transform = "translate(" + x + "," + y + ")";
     return React.createElement(
       'g',
       { transform: transform },
-      React.createElement('rect', { width: '300', height: '100', style: { "fill": "none", "strokeWidth": 3, "stroke": "rgb(100,150,100)" } })
+      React.createElement('rect', { x: -offset, y: -offset, width: size, height: size, style: { "fill": "#7F7", "strokeWidth": 2, "stroke": "rgb(100,150,100)" } }),
+      React.createElement('rect', { x: -offset, y: h, width: size, height: size, style: { "fill": "#7F7", "strokeWidth": 2, "stroke": "rgb(100,150,100)" } }),
+      React.createElement('rect', { x: w, y: -offset, width: size, height: size, style: { "fill": "#7F7", "strokeWidth": 2, "stroke": "rgb(100,150,100)" } }),
+      React.createElement('rect', { x: w, y: h, width: size, height: size, style: { "fill": "#7F7", "strokeWidth": 2, "stroke": "rgb(100,150,100)" } })
     );
+    //  <rect x={w} y={(h-size)/2} width={size} height={size} style={{"fill":"#f77","strokeWidth":2,"stroke":"rgb(100,150,100)"}} onMouseDown={this.onMouseDown}></rect>
   }
 });
 
 module.exports = Cursor;
 
-},{"./graph":174,"./tool":176,"react":171}],173:[function(require,module,exports){
+},{"../../actions/selector":172,"./graph":176,"./tool":178,"react":171}],174:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
 var Point2D = require('../../math/math2d').Point2D;
+
+var GConn = React.createClass({
+  displayName: 'GConn',
+
+
+  getInitialState: function getInitialState() {
+    return {};
+  },
+
+  componentWillMount: function componentWillMount() {},
+
+  componentDidMount: function componentDidMount() {},
+
+  componentDidUpdate: function componentDidUpdate() {},
+
+  componentWillUnmount: function componentWillUnmount() {},
+
+  render: function render() {
+    var conn = this.props.conn;
+    var source = conn.get('source');
+    var target = conn.get('target');
+    var startX = source.get('x') + 100;
+    var startY = source.get('y') + 50;
+    var xx = Number(target.get('x')) - Number(source.get('x'));
+    var yy = Number(target.get('y')) - Number(source.get('y'));
+    var transform = 'translate(' + startX + ',' + startY + ')';
+    return React.createElement(
+      'g',
+      { transform: transform, stroke: 'black', strokeWidth: '3' },
+      React.createElement('path', { d: 'M 0 0 L ' + xx + ' ' + yy })
+    );
+  }
+});
+
+module.exports = GConn;
+
+},{"../../math/math2d":180,"react":171}],175:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var Point2D = require('../../math/math2d').Point2D;
+var selectorAction = require('../../actions/selector');
+
 var DRAG_NONE = 0;
 var DRAG_MOVE = 1;
 
@@ -20814,8 +20890,8 @@ var GNode = React.createClass({
 
   getInitialState: function getInitialState() {
     return {
-      x: 0,
-      y: 0
+      x: this.props.node.get('x'),
+      y: this.props.node.get('y')
     };
   },
 
@@ -20834,19 +20910,19 @@ var GNode = React.createClass({
   onMouseDown: function onMouseDown(e) {
     console.log('onMouseDown');
     this.offset = new Point2D(e.pageX - this.state.x, e.pageY - this.state.y);
-    console.log(this.offset);
     this.setState({
       dragMode: DRAG_MOVE
     });
+    selectorAction.select(this.props.id);
   },
 
   onMouseMove: function onMouseMove(e) {
-    console.log('onMouseMove');
+    //console.log('onMouseMove');
     if (this.state.dragMode == DRAG_MOVE) {
-      console.log(this.offset);
+      //console.log( this.offset );
       var currentPos = new Point2D(e.pageX, e.pageY);
       var dd = currentPos.sub(this.offset);
-      console.log(dd);
+      //console.log(dd);
       if (this.props.onMoved) {
         this.props.onMoved(dd);
       }
@@ -20854,6 +20930,8 @@ var GNode = React.createClass({
         x: dd.x,
         y: dd.y
       });
+      this.props.node.set('x', dd.x);
+      this.props.node.set('y', dd.y);
     }
   },
 
@@ -20881,17 +20959,18 @@ var GNode = React.createClass({
   },
 
   render: function render() {
+    var node = this.props.node;
     var transform = "translate(" + this.state.x + "," + this.state.y + ")";
     return React.createElement(
       'g',
       { transform: transform },
       React.createElement('rect', { onClick: this.onClick, onMouseDown: this.onMouseDown, onMouseEnter: this.onMouseEnter, onMouseLeave: this.onMouseLeave, onMouseMove: this.onMouseMove,
         onMouseOut: this.onMouseOut, onMouseOver: this.onMouseOver, onMouseUp: this.onMouseUp,
-        width: '300', height: '100', style: { "fill": "rgb(255,255,250)", "strokeWidth": 3, "stroke": "rgb(0,0,0)" } }),
+        width: '200', height: '100', style: { "fill": "rgb(255,255,250)", "strokeWidth": 3, "stroke": "rgb(0,0,0)" } }),
       React.createElement(
         'text',
         { x: '6', y: '20' },
-        this.props.name
+        node.get('name')
       )
     );
   }
@@ -20899,12 +20978,17 @@ var GNode = React.createClass({
 
 module.exports = GNode;
 
-},{"../../math/math2d":178,"react":171}],174:[function(require,module,exports){
+},{"../../actions/selector":172,"../../math/math2d":180,"react":171}],176:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
 var GNode = require('./gnode');
+var GConn = require('./gconn');
 var Cursor = require('./cursor');
+var store = require('../../store/editor');
+var selectorAction = require('../../actions/selector');
+
+selectorAction.register(store);
 
 var DRAG_MOVE = 1;
 
@@ -20917,7 +21001,14 @@ var Graph = React.createClass({
   },
 
   componentWillMount: function componentWillMount() {
-    var setState = this.setState.bind(this);
+    var _this = this;
+
+    store.observe(function (editor) {
+      _this.setState({
+        selected: editor.selected,
+        rubberband: editor.rubberband
+      });
+    });
   },
 
   componentDidMount: function componentDidMount() {},
@@ -20927,24 +21018,50 @@ var Graph = React.createClass({
   componentWillUnmount: function componentWillUnmount() {},
 
   render: function render() {
+    var _this2 = this;
+
     if (!this.props.model || !this.props.diagram) return React.createElement('div', null);
     var model = this.props.model;
     var diagram = this.props.diagram;
-    console.log(diagram);
+    //console.log(diagram);
     var nodes = diagram.get('nodes');
+    var connections = diagram.get('connections').map(function (connection) {
+      return connection;
+    });
     var gnodes = nodes.map(function (node) {
       return node;
     }).reduce(function (acc, node) {
       var metaElement = node.get('metaElement');
       var containFeature = node.get('containFeature');
-      console.log(acc, node, containFeature);
+      //console.log(acc, node, containFeature);
       return acc.concat(model.get(containFeature.get('name') || 'classes').map(function (_class) {
-        return _class.get('name');
+        return _class;
       }));
     }, []);
-    var gnodeElems = gnodes.map(function (id) {
-      return React.createElement(GNode, { key: "gnode-" + id, name: id });
+    var gnodeElems = gnodes.map(function (node) {
+      var id = node.get('name');
+      return React.createElement(GNode, { key: "gnode-" + id, id: id, node: node });
     });
+    var gconnections = gnodes.map(function (node) {
+      return connections.reduce(function (acc, connection) {
+        var metaElement = connection.get('metaElement');
+        var containFeature = connection.get('containFeature');
+        return acc.concat(node.get(containFeature.get('name')).map(function (_class) {
+          return _class;
+        }));
+      }, []);
+    });
+    var ftat_gconnections = Array.prototype.concat.apply([], gconnections);
+    var gconnElems = ftat_gconnections.map(function (conn) {
+      var id = conn.get('name');
+      return React.createElement(GConn, { key: "gconn-" + id, id: id, conn: conn });
+    });
+    if (this.state.selected) {
+      var selected = gnodes.filter(function (node) {
+        return _this2.state.selected == node.get('name');
+      })[0];
+    }
+    if (this.state.rubberband) {}
     return React.createElement(
       'div',
       null,
@@ -20954,7 +21071,17 @@ var Graph = React.createClass({
         React.createElement(
           'g',
           null,
+          gconnElems
+        ),
+        React.createElement(
+          'g',
+          null,
           gnodeElems
+        ),
+        React.createElement(
+          'g',
+          null,
+          selected ? React.createElement(Cursor, { selected: selected }) : ''
         )
       )
     );
@@ -20963,7 +21090,7 @@ var Graph = React.createClass({
 
 module.exports = Graph;
 
-},{"./cursor":172,"./gnode":173,"react":171}],175:[function(require,module,exports){
+},{"../../actions/selector":172,"../../store/editor":181,"./cursor":173,"./gconn":174,"./gnode":175,"react":171}],177:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -21005,7 +21132,6 @@ var DiagramEditor = React.createClass({
   componentWillUnmount: function componentWillUnmount() {},
 
   render: function render() {
-    console.log(this.state);
     return React.createElement(
       'div',
       null,
@@ -21017,7 +21143,7 @@ var DiagramEditor = React.createClass({
 
 module.exports = DiagramEditor;
 
-},{"./graph":174,"./tool":176,"react":171}],176:[function(require,module,exports){
+},{"./graph":176,"./tool":178,"react":171}],178:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -21059,7 +21185,7 @@ var ToolList = React.createClass({
 
 module.exports = ToolList;
 
-},{"react":171}],177:[function(require,module,exports){
+},{"react":171}],179:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -21076,7 +21202,7 @@ var mainEl = React.createElement(
 );
 ReactDOM.render(mainEl, document.getElementById('main'));
 
-},{"./components/diagram":175,"react":171,"react-dom":28}],178:[function(require,module,exports){
+},{"./components/diagram":177,"react":171,"react-dom":28}],180:[function(require,module,exports){
 "use strict";
 
 function Point2D(x, y) {
@@ -21477,4 +21603,32 @@ module.exports = {
 	Rectangle2D: Rectangle2D
 };
 
-},{}]},{},[177]);
+},{}],181:[function(require,module,exports){
+"use strict";
+
+var defaultData = {
+	selected: null
+};
+
+module.exports = {
+	storedData: defaultData,
+	observer: [],
+	get: function get() {
+		return this.storedData;
+	},
+	update: function update(params) {
+		this.storedData = Object.assign(this.storedData, params);
+		this.fire(this.storedData);
+	},
+	fire: function fire(e) {
+		this.observer.forEach(function (obs) {
+			obs(e);
+		});
+	},
+	observe: function observe(cb) {
+		this.observer.push(cb);
+		this.fire(this.storedData);
+	}
+};
+
+},{}]},{},[179]);

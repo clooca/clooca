@@ -2,24 +2,25 @@
   "name": "bookstore(sample)",
   "required": [
     {
-      "uri": "https://raw.githubusercontent.com/clooca/model-examples/master/examples/classdiagram/metamodel.json"
+      "uri": "https://clooca.github.io/model-examples/examples/diagrameditor/model.json"
     },
     {
-      "uri": "https://raw.githubusercontent.com/clooca/model-examples/master/examples/diagrameditor/metamodel.json"
+      "uri": "https://clooca.github.io/model-examples/examples/classdiagram/metamodel.json"
     },
     {
-      "uri": "https://raw.githubusercontent.com/clooca/model-examples/master/examples/diagrameditor/classdiagram.json"
+      "uri": "https://clooca.github.io/model-examples/examples/classdiagram/diagrameditor.json"
     }
   ],
   "models": [
     {
-      "uri": "syuhei/samples/bookstore"
+      "uri": "https://clooca.github.io/model-examples/examples/classdiagram/model.json",
+      "import": true
     }
   ],
   "plugin": {
     "diagrameditor": {
       "name": "diagrameditor",
-      "define": "https://raw.githubusercontent.com/clooca/model-examples/master/examples/diagrameditor/classdiagram.json"
+      "define": "https://clooca.github.io/model-examples/examples/classdiagram/diagrameditor.json"
     }
   }
 }
