@@ -3,21 +3,23 @@ Visual Language Platform
 
 [![CircleCI](https://circleci.com/gh/clooca/clooca.svg?style=svg)](https://circleci.com/gh/clooca/clooca)
 
-cloocaはコンセプト実証段階です。
-モデルインターフェースを中心に添えたプラグインエコシステムを構築します。
-clienr/server両方をプラグイン化できます。
+clooca is under the PoC phase. clooca is a modeling framework based on ecore and it has plugin system.
 
-ロードマップ
+## Roadmap / ToDo
 
-以下がプラグインで動作することを目指します。
+Plugins
 
-- ダイアグラムエディタ
-- モデルエクスプローラ
-- プロパティエディタ
-- モデルシミュレータ
-- コードジェネレータ
-- モデルインポータ・エクスポータ
+- diagram editor
+- model explorer
+- property editor
+- model simulator
+- code generator
+- m2m
+- deployment
 
+## ScreenShot
+
+![metamodeling](https://github.com/clooca/clooca/raw/develop/docs/metamodeling.png "サンプル")
 
 ## Quick Start
 
