@@ -1,8 +1,16 @@
+var repository = require('../../storage/repository');
+
 module.exports = {
 	save: function(clooca, uri, model) {
-		return clooca.getStorage().save('clrep', uri, model);
+		return repository.saveModel(clooca.getStorage(), uri, model);
 	},
 	load: function(storage, uri) {
-		return clooca.getStorage().load('clooca', uri);
+		return repository.loadModel(clooca.getStorage(), uri);
+	},
+	delete: function(clooca, uri) {
+		return repository.deleteModel(clooca.getStorage(), uri);
+	},
+	list: function(clooca) {
+		return repository.listModels(clooca.getStorage());
 	}
 }

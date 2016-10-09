@@ -68,6 +68,31 @@ a {
     clear:both;
 }
 
+.btn {
+    width: 120px;
+    height: 32px;
+    cursor: pointer;
+    margin: 1px;
+}
+
+.ok-btn {
+    background-color: #67f090;
+    border: solid 1px #a0ffc0;
+}
+
+.ok-btn:hover {
+    background-color: #77ffa0;
+}
+
+.cancel-btn {
+    background-color: #f0a0a0;
+    border: solid 1px #f7a7a7;
+}
+
+.cancel-btn:hover {
+    background-color: #ffb0b0;
+}
+
 
 /* editor */
 

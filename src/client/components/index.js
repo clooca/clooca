@@ -8,6 +8,8 @@ var hashHistory = require('react-router').hashHistory;
 var Editor = require('./editor');
 var ProjectList = require('./project/list');
 var ProjectSettings = require('./project/settings');
+var ModelList = require('./model/list');
+
 var NoMatch = React.createClass({
 	render: function() {
 		return (<div><Link to="/projects">projects</Link></div>);
@@ -40,6 +42,10 @@ let IndexComponent = React.createClass({
 		</Route>
 		<Route path="/project/:projectId" component={Editor}/>
 		<Route path="/project/:projectId/settings" component={ProjectSettings}/>
+
+    <Route path="/models" component={ModelList}>
+    </Route>
+
 		<Route path="*" component={NoMatch}/>
 	  </Router>
     );

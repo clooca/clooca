@@ -81,7 +81,7 @@ let ProjectSettings = React.createClass({
     	<div className="settings-wrapper">
     	<div><Link to="/projects">←Return</Link></div>
     	<div><textarea cols="50" rows="16" ref="settings"/></div>
-    	<div><button onClick={this.save}>Save</button></div>
+    	<div><button className="btn ok-btn" onClick={this.save}>Save</button></div>
     	</div>
     );
       /*

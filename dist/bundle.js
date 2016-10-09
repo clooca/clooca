@@ -41417,7 +41417,7 @@ clooca.prototype.registerPlugin = function (pluginName, pluginModule) {
 
 module.exports = clooca;
 
-},{"../common/core/model":331,"../common/core/pluginInterface":332,"../common/core/registry":334,"../common/storage/adaptor/localStorage":336,"./actions/modal":309}],312:[function(require,module,exports){
+},{"../common/core/model":332,"../common/core/pluginInterface":333,"../common/core/registry":335,"../common/storage/adaptor/localStorage":337,"./actions/modal":309}],312:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -41594,7 +41594,7 @@ var Header = React.createClass({
 
 module.exports = Header;
 
-},{"../../../common/core/repository":335,"../../actions/modal":309,"../../actions/tab":310,"../menu":316,"../menu/item":317,"../modal/addContainment":318,"../modal/addObject":319,"../modal/addTab":320,"../modal/exportJSON":321,"../modal/importJSON":322,"./resources":314,"querystring":85,"react":286,"react-router":123}],313:[function(require,module,exports){
+},{"../../../common/core/repository":336,"../../actions/modal":309,"../../actions/tab":310,"../menu":316,"../menu/item":317,"../modal/addContainment":318,"../modal/addObject":319,"../modal/addTab":320,"../modal/exportJSON":321,"../modal/importJSON":322,"./resources":314,"querystring":85,"react":286,"react-router":123}],313:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -41683,7 +41683,7 @@ var CoreComponent = React.createClass({
 
 module.exports = CoreComponent;
 
-},{"../../../common/core/project":333,"../../actions/modal":309,"../../actions/tab":310,"../../pluginLoader":329,"../../store/editor":330,"../plugin/item":323,"../plugin/panel":324,"../tab":327,"./header":312,"react":286,"react-split-pane":132}],314:[function(require,module,exports){
+},{"../../../common/core/project":334,"../../actions/modal":309,"../../actions/tab":310,"../../pluginLoader":330,"../../store/editor":331,"../plugin/item":324,"../plugin/panel":325,"../tab":328,"./header":312,"react":286,"react-split-pane":132}],314:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -41755,6 +41755,8 @@ var hashHistory = require('react-router').hashHistory;
 var Editor = require('./editor');
 var ProjectList = require('./project/list');
 var ProjectSettings = require('./project/settings');
+var ModelList = require('./model/list');
+
 var NoMatch = React.createClass({
   displayName: 'NoMatch',
 
@@ -41794,6 +41796,7 @@ var IndexComponent = React.createClass({
       React.createElement(Route, { path: '/projects', component: ProjectList }),
       React.createElement(Route, { path: '/project/:projectId', component: Editor }),
       React.createElement(Route, { path: '/project/:projectId/settings', component: ProjectSettings }),
+      React.createElement(Route, { path: '/models', component: ModelList }),
       React.createElement(Route, { path: '*', component: NoMatch })
     );
   }
@@ -41801,7 +41804,7 @@ var IndexComponent = React.createClass({
 
 module.exports = IndexComponent;
 
-},{"./editor":313,"./project/list":325,"./project/settings":326,"react":286,"react-router":123}],316:[function(require,module,exports){
+},{"./editor":313,"./model/list":323,"./project/list":326,"./project/settings":327,"react":286,"react-router":123}],316:[function(require,module,exports){
 "use strict";
 
 var React = require('react');
@@ -42504,6 +42507,69 @@ var ImportJSONModal = React.createClass({
 module.exports = ImportJSONModal;
 
 },{"react":286,"react-modal":93}],323:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var Link = require('react-router').Link;
+var Repository = require('../../../common/core/repository');
+
+var ModelList = React.createClass({
+  displayName: 'ModelList',
+
+
+  getInitialState: function getInitialState() {
+    return {
+      models: [],
+      createMode: false
+    };
+  },
+
+  componentWillMount: function componentWillMount() {
+    this.refresh();
+  },
+
+  refresh: function refresh() {
+    var setState = this.setState.bind(this);
+    Repository.list(clooca).then(function (models) {
+      setState({
+        models: models
+      });
+    });
+  },
+
+  componentDidMount: function componentDidMount() {},
+
+  componentDidUpdate: function componentDidUpdate() {},
+
+  componentWillUnmount: function componentWillUnmount() {},
+
+  render: function render() {
+    var self = this;
+    var modelList = this.state.models.map(function (model) {
+      console.log(model);
+      return React.createElement(
+        'div',
+        { className: 'projectlist-item' },
+        React.createElement(
+          'div',
+          { className: 'projectlist-item-title' },
+          model.name
+        ),
+        React.createElement('div', { className: 'projectlist-item-clear' })
+      );
+    });
+
+    return React.createElement(
+      'div',
+      { className: 'projectlist-wrapper' },
+      modelList
+    );
+  }
+});
+
+module.exports = ModelList;
+
+},{"../../../common/core/repository":336,"react":286,"react-router":123}],324:[function(require,module,exports){
 "use strict";
 
 var React = require('react');
@@ -42541,7 +42607,7 @@ var PluginItem = React.createClass({
 
 module.exports = PluginItem;
 
-},{"react":286}],324:[function(require,module,exports){
+},{"react":286}],325:[function(require,module,exports){
 "use strict";
 
 var React = require('react');
@@ -42573,7 +42639,7 @@ var Panel = React.createClass({
 
 module.exports = Panel;
 
-},{"react":286}],325:[function(require,module,exports){
+},{"react":286}],326:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -42685,24 +42751,24 @@ var ProjectList = React.createClass({
       projectList,
       React.createElement(
         'div',
-        null,
+        { style: { marginLeft: "12px" } },
         this.state.createMode ? React.createElement(
           'div',
           null,
-          React.createElement('input', { ref: 'name', type: 'text' }),
+          React.createElement('input', { ref: 'name', type: 'text', placeholder: 'Project Name Here' }),
           React.createElement(
             'button',
-            { onClick: this.onCancelClicked },
+            { className: 'btn cancel-btn', onClick: this.onCancelClicked },
             'cancel'
           ),
           React.createElement(
             'button',
-            { onClick: this.onCreateProjectClicked },
+            { className: 'btn ok-btn', onClick: this.onCreateProjectClicked },
             'Create Project'
           )
         ) : React.createElement(
           'button',
-          { onClick: this.onNewProjectClicked },
+          { className: 'btn ok-btn', onClick: this.onNewProjectClicked },
           'New Project'
         )
       )
@@ -42712,7 +42778,7 @@ var ProjectList = React.createClass({
 
 module.exports = ProjectList;
 
-},{"../../../common/core/project":333,"react":286,"react-router":123}],326:[function(require,module,exports){
+},{"../../../common/core/project":334,"react":286,"react-router":123}],327:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -42813,7 +42879,7 @@ var ProjectSettings = React.createClass({
         null,
         React.createElement(
           'button',
-          { onClick: this.save },
+          { className: 'btn ok-btn', onClick: this.save },
           'Save'
         )
       )
@@ -42829,7 +42895,7 @@ var ProjectSettings = React.createClass({
 
 module.exports = ProjectSettings;
 
-},{"../../../common/storage/project":337,"react":286,"react-router":123}],327:[function(require,module,exports){
+},{"../../../common/storage/project":338,"react":286,"react-router":123}],328:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -42921,7 +42987,7 @@ var TabComponent = React.createClass({
 
 module.exports = TabComponent;
 
-},{"../plugin/panel":324,"react":286,"react-tabs":143}],328:[function(require,module,exports){
+},{"../plugin/panel":325,"react":286,"react-tabs":143}],329:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -42965,7 +43031,7 @@ clooca.getCC().request('clooca', 'getSettings', {}).then((_settings) => {
 });
 */
 
-},{"../common/core/project":333,"../common/core/registry":334,"./clooca":311,"./components":315,"./pluginLoader":329,"react":286,"react-dom":86}],329:[function(require,module,exports){
+},{"../common/core/project":334,"../common/core/registry":335,"./clooca":311,"./components":315,"./pluginLoader":330,"react":286,"react-dom":86}],330:[function(require,module,exports){
 'use strict';
 
 var ajax = require('../common/utils/ajax');
@@ -42996,7 +43062,7 @@ module.exports = function (cb) {
     });
 };
 
-},{"../common/utils/ajax":339}],330:[function(require,module,exports){
+},{"../common/utils/ajax":340}],331:[function(require,module,exports){
 'use strict';
 
 var defaultData = {
@@ -43039,7 +43105,7 @@ module.exports = {
 	}
 };
 
-},{}],331:[function(require,module,exports){
+},{}],332:[function(require,module,exports){
 'use strict';
 
 var Ecore = require('ecore');
@@ -43151,7 +43217,7 @@ ModelInterface.prototype.fireUpdate = function (model) {
 
 module.exports = ModelInterface;
 
-},{"ecore":12,"eventemitter2":14,"uuid":306}],332:[function(require,module,exports){
+},{"ecore":12,"eventemitter2":14,"uuid":306}],333:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -43201,7 +43267,7 @@ if ('browser' !== process.title) {
 module.exports = PluginInterface;
 
 }).call(this,require('_process'))
-},{"../utils/ajax":339,"./registry":334,"_process":80}],333:[function(require,module,exports){
+},{"../utils/ajax":340,"./registry":335,"_process":80}],334:[function(require,module,exports){
 'use strict';
 
 var projectLoader = require('../../storage/project');
@@ -43278,7 +43344,7 @@ module.exports = {
 	}
 };
 
-},{"../../storage/project":337,"../../storage/repository":338}],334:[function(require,module,exports){
+},{"../../storage/project":338,"../../storage/repository":339}],335:[function(require,module,exports){
 "use strict";
 
 function addModule(moduleName, moduleObject) {
@@ -43295,19 +43361,27 @@ module.exports = {
 	getModule: getModule
 };
 
-},{}],335:[function(require,module,exports){
+},{}],336:[function(require,module,exports){
 'use strict';
+
+var repository = require('../../storage/repository');
 
 module.exports = {
 	save: function save(clooca, uri, model) {
-		return clooca.getStorage().save('clrep', uri, model);
+		return repository.saveModel(clooca.getStorage(), uri, model);
 	},
 	load: function load(storage, uri) {
-		return clooca.getStorage().load('clooca', uri);
+		return repository.loadModel(clooca.getStorage(), uri);
+	},
+	delete: function _delete(clooca, uri) {
+		return repository.deleteModel(clooca.getStorage(), uri);
+	},
+	list: function list(clooca) {
+		return repository.listModels(clooca.getStorage());
 	}
 };
 
-},{}],336:[function(require,module,exports){
+},{"../../storage/repository":339}],337:[function(require,module,exports){
 'use strict';
 
 module.exports = function (settings) {
@@ -43347,7 +43421,7 @@ module.exports = function (settings) {
 	};
 };
 
-},{}],337:[function(require,module,exports){
+},{}],338:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -43365,7 +43439,7 @@ module.exports = {
 	}
 };
 
-},{}],338:[function(require,module,exports){
+},{}],339:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -43374,10 +43448,16 @@ module.exports = {
 	},
 	loadModel: function loadModel(storage, uri) {
 		return storage.load('clrep', uri);
+	},
+	deleteModel: function deleteModel(storage, uri) {
+		return storage.delete('clrep', uri);
+	},
+	listModels: function listModels(storage) {
+		return storage.list('clrep');
 	}
 };
 
-},{}],339:[function(require,module,exports){
+},{}],340:[function(require,module,exports){
 (function (process){
 "use strict";
 
@@ -43569,4 +43649,4 @@ function createCORSRequest(method, url) {
 }
 
 }).call(this,require('_process'))
-},{"_process":80,"http":294,"https":60,"querystring":85,"url":302}]},{},[328]);
+},{"_process":80,"http":294,"https":60,"querystring":85,"url":302}]},{},[329]);

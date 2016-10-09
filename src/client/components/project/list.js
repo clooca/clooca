@@ -80,10 +80,10 @@ let ProjectList = React.createClass({
     return (
     	<div className="projectlist-wrapper">
 	    	{projectList}
-	    	<div>
+	    	<div style={{marginLeft:"12px"}}>
 				{this.state.createMode?
-					(<div><input ref="name" type="text"/><button onClick={this.onCancelClicked}>cancel</button><button onClick={this.onCreateProjectClicked}>Create Project</button></div>):
-		    		(<button onClick={this.onNewProjectClicked}>New Project</button>)
+					(<div><input ref="name" type="text" placeholder="Project Name Here"/><button className="btn cancel-btn" onClick={this.onCancelClicked}>cancel</button><button className="btn ok-btn" onClick={this.onCreateProjectClicked}>Create Project</button></div>):
+		    		(<button className="btn ok-btn" onClick={this.onNewProjectClicked}>New Project</button>)
 				}
 
 	    	</div>
