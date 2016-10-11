@@ -54,6 +54,7 @@ gulp.task('plugins', function () {
   buildPlugin('code-generator', true);
   buildPlugin('simulator', true);
   buildPlugin('gme', true);
+  buildPlugin('template-editor', true);
 });
 
 gulp.task('watch', ['plugins'], function () {
