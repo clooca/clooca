@@ -1,4 +1,4 @@
-var GraphiticalModelEditor = require('./gme');
+var GraphiticalModelEditor = require('./gme2');
 
 window.clooca = window.parent.window.clooca;
 

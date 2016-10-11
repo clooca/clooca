@@ -42546,7 +42546,6 @@ var ModelList = React.createClass({
   render: function render() {
     var self = this;
     var modelList = this.state.models.map(function (model) {
-      console.log(model);
       return React.createElement(
         'div',
         { className: 'projectlist-item' },

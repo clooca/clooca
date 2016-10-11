@@ -2,22 +2,6 @@
  * @author Shuhei Hiya
  */
 
-	Globalize.addCultureInfo( "ja", {
-		messages: {
-		    'remove-from-diagram' : '図から削除',
-		    'remove-from-model' : 'モデルから削除',
-		    'put-from-modelexplorer' : 'モデルエクスプローラから配置',
-		    'add-point' : 'ポイントを追加'
-		}
-	});
-	Globalize.addCultureInfo( "en", {
-		messages: {
-			'remove-from-diagram' : 'Remove from Diagram',
-			'remove-from-model' : 'Remove from Model',
-			'put-from-modelexplorer' : 'Put from ModelExplorer',
-			'add-point' : 'Add a point to connection.'
-		}
-	});
 	
 /**
  * 
