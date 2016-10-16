@@ -26,7 +26,22 @@ let CoreComponent = React.createClass({
   componentWillMount: function() {
   	let setState = this.setState.bind(this);
     console.log(this.props.params);
-    project.load(clooca, this.props.params.projectId).then(()=>{
+    project.load(clooca, this.props.params.projectId).then((projectData)=>{
+      var tabs = projectData.plugins.map((plugin)=>{
+        return {
+          title: plugin.name,
+          plugin: plugin.name
+        }
+      });
+      tabs = tabs.concat([{
+        title: 'Property',
+        plugin: 'property-editor'
+      }]);
+      setState({
+        editorSettings: {
+          tabs: tabs
+        }
+      });
       return pluginLoader();
     }).then((pluginNames)=>{
       setState({
@@ -48,13 +63,6 @@ let CoreComponent = React.createClass({
   },
 
   componentWillUnmount : function() {
-  },
-
-  changePlugin: function(pluginName) {
-    console.log(pluginName);
-  	this.setState({
-  		plugin: pluginName
-  	});
   },
 
   render: function () {

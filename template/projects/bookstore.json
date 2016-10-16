@@ -17,10 +17,15 @@
       "import": true
     }
   ],
-  "plugin": {
-    "diagrameditor": {
-      "name": "diagrameditor",
+  "plugins": [{
+    "name": "diagram-editor",
+    "params": {
       "define": "https://clooca.github.io/model-examples/examples/classdiagram/diagrameditor.json"
     }
-  }
+  },{
+    "name":"code-generator",
+    "params": {
+      "templates": []
+    }
+  }]
 }

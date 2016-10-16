@@ -41627,7 +41627,22 @@ var CoreComponent = React.createClass({
   componentWillMount: function componentWillMount() {
     var setState = this.setState.bind(this);
     console.log(this.props.params);
-    project.load(clooca, this.props.params.projectId).then(function () {
+    project.load(clooca, this.props.params.projectId).then(function (projectData) {
+      var tabs = projectData.plugins.map(function (plugin) {
+        return {
+          title: plugin.name,
+          plugin: plugin.name
+        };
+      });
+      tabs = tabs.concat([{
+        title: 'Property',
+        plugin: 'property-editor'
+      }]);
+      setState({
+        editorSettings: {
+          tabs: tabs
+        }
+      });
       return pluginLoader();
     }).then(function (pluginNames) {
       setState({
@@ -41647,13 +41662,6 @@ var CoreComponent = React.createClass({
   componentDidUpdate: function componentDidUpdate() {},
 
   componentWillUnmount: function componentWillUnmount() {},
-
-  changePlugin: function changePlugin(pluginName) {
-    console.log(pluginName);
-    this.setState({
-      plugin: pluginName
-    });
-  },
 
   render: function render() {
     var self = this;
@@ -43062,25 +43070,12 @@ module.exports = function (cb) {
 };
 
 },{"../common/utils/ajax":340}],331:[function(require,module,exports){
-'use strict';
+"use strict";
 
 var defaultData = {
 	isOpenAddObjectModal: false,
 	isOpenAddContainmentModal: false,
-	tabs: [{
-		title: 'Property',
-		plugin: 'property-editor'
-		/*
-  },{
-  title: 'Graphical Modeling Editor',
-  plugin: 'gme'*/
-	}, {
-		title: 'Diagram Editor',
-		plugin: 'diagram-editor'
-	}, {
-		title: 'Code',
-		plugin: 'code-generator'
-	}]
+	tabs: []
 };
 
 module.exports = {
@@ -43272,6 +43267,11 @@ module.exports = PluginInterface;
 var projectLoader = require('../../storage/project');
 var repository = require('../../storage/repository');
 
+/*
+ * format
+ *  toolId
+ *
+ */
 module.exports = {
 	init: function init(clooca) {
 		var _this = this;
@@ -43326,10 +43326,15 @@ module.exports = {
 					});
 				};
 			});
+			if (!projectData.plugins) projectData.plugins = [];
 			var loadTasks = loadRequiredTasks.concat(loadModelTasks);
 			return loadTasks.reduce(function (a, b) {
 				return a.then(b);
-			}, Promise.resolve(null));
+			}, Promise.resolve(null)).then(function () {
+				return new Promise(function (resolve, reject) {
+					resolve(projectData);
+				});
+			});
 		});
 	},
 	save: function save(clooca, name, data) {

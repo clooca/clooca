@@ -1,6 +1,11 @@
 var projectLoader = require('../../storage/project');
 var repository = require('../../storage/repository');
 
+/*
+ * format
+ *  toolId
+ *
+ */
 module.exports = {
 	init: function(clooca) {
 		return this.list(clooca).then((projects)=>{
@@ -51,10 +56,15 @@ module.exports = {
 					});
 				}
 			});
+			if(!projectData.plugins) projectData.plugins = [];
 			var loadTasks = loadRequiredTasks.concat(loadModelTasks);
 			return loadTasks.reduce(function (a, b) {
 				return a.then(b);
-			}, Promise.resolve(null));
+			}, Promise.resolve(null)).then(()=>{
+				return new Promise((resolve, reject)=>{
+					resolve(projectData);
+				});
+			});
 		});
 	},
 	save: function(clooca, name, data) {
