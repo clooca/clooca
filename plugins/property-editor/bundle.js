@@ -20776,29 +20776,32 @@ var FormItem = React.createClass({
 
   componentWillMount: function componentWillMount() {
     var setState = this.setState.bind(this);
-    //this.refreshState(this.props);
   },
 
-  componentWillReceiveProps: function componentWillReceiveProps(nextProps) {
-    //this.refreshState(nextProps);
-  },
+  componentWillReceiveProps: function componentWillReceiveProps(nextProps) {},
 
   getValue: function getValue(props) {
     var meta = props.meta;
+    var parent = props.parent;
+    var childName = props.childName;
+    var childIndex = props.childIndex;
+    var eType = meta.get('eType').get('name');
 
     var value = '';
-    if (meta.get('eType').get('name') == 'EString') {
-      value = props.parent.get(props.childName);
-    } else if (meta.get('eType').get('name') == 'EInt') {
-      value = props.parent.get(props.childName);
-    } else if (meta.get('eType').get('name') == 'EBoolean') {
-      value = props.parent.get(props.childName);
-    } else if (meta.get('eType').get('name') == 'EDouble') {
-      value = props.parent.get(props.childName);
-    } else if (meta.get('eType').get('name') == 'EDate') {
-      value = props.parent.get(props.childName);
+    var simpleETypes = ['EString', 'EInt', 'EBoolean', 'EDouble', 'EDate'];
+    if (simpleETypes.indexOf(eType) >= 0) {
+      if (childName) {
+        value = parent.get(childName);
+      } else {
+        value = parent.at(childIndex);
+      }
     } else {
-      var item = props.parent.get(props.childName);
+      var item = null;
+      if (childName) {
+        item = parent.get(childName);
+      } else {
+        item = parent.at(childIndex);
+      }
       if (item) {
         if (Array.isArray(item)) {
           value = item.map(function (i) {
@@ -20882,7 +20885,7 @@ var FormItem = React.createClass({
         );
       }
     } else {
-      inputElem = React.createElement(FormList, { meta: meta, list: item });
+      inputElem = React.createElement(FormList, { resourceSet: this.props.resourceSet, meta: meta, parent: item });
     }
     return React.createElement(
       'div',
@@ -20908,51 +20911,20 @@ module.exports = FormItem;
 
 var React = require('react');
 var ReactDom = require('react-dom');
+var FormListItem = require('./formListItem');
 
 var FormList = React.createClass({
   displayName: 'FormList',
 
 
   getInitialState: function getInitialState() {
-    return {};
+    return {
+      addForm: false
+    };
   },
 
   componentWillMount: function componentWillMount() {
     var setState = this.setState.bind(this);
-    //this.refreshState(this.props);
-  },
-
-  componentWillReceiveProps: function componentWillReceiveProps(nextProps) {
-    //this.refreshState(nextProps);
-  },
-
-  refreshState: function refreshState(props) {
-    var meta = props.meta;
-
-    var value = '';
-    if (meta.get('eType').get('name') == 'EString') {
-      value = props.parent.get(props.childName);
-    } else if (meta.get('eType').get('name') == 'ENumber') {
-      value = props.parent.get(props.childName);
-    } else if (meta.get('eType').get('name') == 'EBoolean') {
-      value = props.parent.get(props.childName);
-    } else {
-      var item = props.parent.get(props.childName);
-      if (item) {
-        if (Array.isArray(item)) {
-          value = item.map(function (i) {
-            return i.get('name');
-          }).join(',');
-        } else if (item.at) {} else {
-          value = item.get('name');
-        }
-      } else {
-        value = 'none';
-      }
-    }
-    this.setState({
-      value: value
-    });
   },
 
   componentDidMount: function componentDidMount() {},
@@ -20961,48 +20933,174 @@ var FormList = React.createClass({
 
   componentWillUnmount: function componentWillUnmount() {},
 
-  updateProperties: function updateProperties(e) {
+  addHandler: function addHandler() {
     this.setState({
-      value: e.target.value
+      addForm: true
     });
-    this.props.parent.set(this.props.childName, e.target.value);
   },
 
-  updateRelation: function updateRelation(event) {
-    var meta = this.props.meta;
-    var elements = this.props.resourceSet.elements(meta.get('eType').get('name'));
-    var target = elements.filter(function (elem) {
-      return elem.get('name') == event.target.value;
-    })[0];
+  addElementHandler: function addElementHandler(element) {
+    this.props.parent.add(element);
+    this.cancelHandler();
+  },
+
+  cancelHandler: function cancelHandler() {
     this.setState({
-      value: event.target.value
+      addForm: false
     });
-    this.props.parent.set(this.props.childName, target);
   },
 
   render: function render() {
     var meta = this.props.meta;
-    var list = this.props.list;
-    var itemComponents = list.map(function (i) {
-      console.log(i.get('name'));
+    var itemComponents = this.props.parent.map(function (value, i) {
+      var containerName = value.eContainer.get('name');
       return React.createElement(
         'div',
         null,
-        i.get('name')
+        containerName + ':' + value.get('name')
       );
+      //return (<FormListItem key={'formlist-'+i} resourceSet={this.props.resourceSet} parent={this.props.parent} childIndex={i} meta={meta}></FormListItem>);
     });
-
-    return React.createElement(
-      'div',
-      null,
-      itemComponents
-    );
+    if (this.state.addForm) {
+      return React.createElement(
+        'div',
+        null,
+        React.createElement(
+          'div',
+          null,
+          itemComponents
+        ),
+        React.createElement(FormListItem, { key: 'formlist', resourceSet: this.props.resourceSet, meta: meta, addElementHandler: this.addElementHandler }),
+        React.createElement(
+          'div',
+          null,
+          React.createElement(
+            'button',
+            { onClick: this.cancelHandler },
+            'Cancel'
+          )
+        )
+      );
+    } else {
+      return React.createElement(
+        'div',
+        null,
+        React.createElement(
+          'div',
+          null,
+          itemComponents
+        ),
+        React.createElement(
+          'div',
+          null,
+          React.createElement(
+            'button',
+            { onClick: this.addHandler },
+            'Add'
+          )
+        )
+      );
+    }
   }
 });
 
 module.exports = FormList;
 
-},{"react":171,"react-dom":28}],174:[function(require,module,exports){
+},{"./formListItem":174,"react":171,"react-dom":28}],174:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var ReactDom = require('react-dom');
+
+var FormListItem = React.createClass({
+		displayName: 'FormListItem',
+
+
+		getInitialState: function getInitialState() {
+				return {};
+		},
+
+		componentWillMount: function componentWillMount() {
+				var setState = this.setState.bind(this);
+		},
+
+		componentWillReceiveProps: function componentWillReceiveProps(nextProps) {},
+
+		componentDidMount: function componentDidMount() {},
+
+		componentDidUpdate: function componentDidUpdate() {},
+
+		componentWillUnmount: function componentWillUnmount() {},
+
+		updateProperties: function updateProperties(eTypeName, e) {
+				var newValue = e.target.value;
+				this.props.addElementHandler(newValue);
+		},
+
+		updateRelation: function updateRelation(event) {
+				var meta = this.props.meta;
+				var elements = this.props.resourceSet.elements(meta.get('eType').get('name'));
+				var target = elements.filter(function (elem) {
+						return elem.get('name') == event.target.value;
+				})[0];
+				this.props.addElementHandler(target);
+		},
+
+		render: function render() {
+				var item = null;
+				var meta = this.props.meta;
+				var label = meta.get('name');
+				var inputElem = React.createElement('div', null);
+				var disabled = meta.get('containment');
+				//if(meta.get('upperBound') == 1) {
+				var eTypeName = meta.get('eType').get('name');
+				var updateProperties = this.updateProperties.bind(this, eTypeName);
+				if (eTypeName == 'EString') {
+						inputElem = React.createElement('input', { onChange: updateProperties, type: 'text' });
+				} else if (eTypeName == 'EInt') {
+						inputElem = React.createElement('input', { onChange: updateProperties, type: 'number' });
+				} else if (eTypeName == 'EBoolean') {
+						inputElem = React.createElement('input', { onChange: updateProperties, type: 'checkbox' });
+				} else if (eTypeName == 'EDouble') {} else if (eTypeName == 'EDate') {} else {
+						if (disabled) {
+								return React.createElement(
+										'div',
+										null,
+										currentValue
+								);
+						} else {
+								var elements = this.props.resourceSet.elements(meta.get('eType').get('name'));
+								var options = elements.map(function (e) {
+										var containerName = e.eContainer.get('name');
+										return React.createElement(
+												'option',
+												{ value: e.get('name') },
+												containerName + ':' + e.get('name')
+										);
+								});
+								inputElem = React.createElement(
+										'select',
+										{ onChange: this.updateRelation },
+										options
+								);
+						}
+				}
+				//}
+				return React.createElement(
+						'div',
+						{ style: { overflow: 'hidden', clear: 'hidden', borderBottom: '1px solid #aaa' } },
+						React.createElement(
+								'div',
+								{ style: { float: 'left' } },
+								inputElem
+						)
+				);
+		}
+});
+
+module.exports = FormListItem;
+
+},{"react":171,"react-dom":28}],175:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -21029,6 +21127,7 @@ var PropertyEditor = React.createClass({
         model: model
       });
       model.on('change', function (f) {
+        console.log(f);
         setState({
           model: model
         });
@@ -21058,7 +21157,7 @@ var PropertyEditor = React.createClass({
 
 module.exports = PropertyEditor;
 
-},{"./panel":175,"react":171}],175:[function(require,module,exports){
+},{"./panel":176,"react":171}],176:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -21105,7 +21204,7 @@ var Panel = React.createClass({
 
 module.exports = Panel;
 
-},{"./formItem":172,"react":171}],176:[function(require,module,exports){
+},{"./formItem":172,"react":171}],177:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -21144,4 +21243,4 @@ clooca.registerPlugin('property', propertyEditor);
 var mainEl = React.createElement(PropertyEditorComponent, { propertyEditor: propertyEditor });
 ReactDOM.render(mainEl, document.getElementById('main'));
 
-},{"./components":174,"react":171,"react-dom":28}]},{},[176]);
+},{"./components":175,"react":171,"react-dom":28}]},{},[177]);

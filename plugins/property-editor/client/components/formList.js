@@ -1,51 +1,17 @@
 var React = require('react');
 var ReactDom = require('react-dom');
+var FormListItem = require('./formListItem');
 
 let FormList = React.createClass({
 
   getInitialState: function () {
     return {
-
+      addForm: false
     };
   },
 
   componentWillMount: function() {
     var setState = this.setState.bind(this);
-    //this.refreshState(this.props);
-  },
-
-  componentWillReceiveProps: function(nextProps) {
-    //this.refreshState(nextProps);
-  },
-
-  refreshState: function(props) {
-    let meta = props.meta;
-
-    let value = '';
-    if(meta.get('eType').get('name') == 'EString') {
-      value = props.parent.get(props.childName);
-    }else if(meta.get('eType').get('name') == 'ENumber') {
-      value = props.parent.get(props.childName);
-    }else if(meta.get('eType').get('name') == 'EBoolean') {
-      value = props.parent.get(props.childName);
-    }else{
-      let item = props.parent.get(props.childName);
-      if(item) {
-        if(Array.isArray(item)) {
-          value = item.map((i)=>{
-            return i.get('name');
-          }).join(',');
-        }else if(item.at) {
-        }else{
-          value = item.get('name');
-        }
-      }else{
-        value = 'none';
-      }
-    }
-    this.setState({
-      value: value
-    });
   },
 
   componentDidMount: function () {
@@ -57,36 +23,46 @@ let FormList = React.createClass({
   componentWillUnmount: function() {
   },
 
-  updateProperties: function(e) {
+  addHandler: function() {
     this.setState({
-      value: e.target.value
-    })
-  	this.props.parent.set(this.props.childName, e.target.value);
+      addForm: true
+    });
   },
 
-  updateRelation: function(event) {
-    let meta = this.props.meta;
-    let elements = this.props.resourceSet.elements(meta.get('eType').get('name'));
-    let target = elements.filter((elem) => {
-      return elem.get('name') == event.target.value;
-    })[0];
+  addElementHandler: function(element) {
+    this.props.parent.add(element);
+    this.cancelHandler();
+  },
+
+  cancelHandler: function() {
     this.setState({
-      value: event.target.value
+      addForm: false
     });
-    this.props.parent.set(this.props.childName, target);
   },
 
   render: function () {
   	let meta = this.props.meta;
-  	let list = this.props.list;
-	let itemComponents = list.map((i)=>{
-	  	console.log(i.get('name'));
-		return (<div>{i.get('name')}</div>);
-	});
-
-    return (
-    	<div>{itemComponents}</div>
-    );
+  	let itemComponents = this.props.parent.map((value, i)=>{
+      let containerName = value.eContainer.get('name');
+      return (<div>{containerName+':'+value.get('name')}</div>);
+      //return (<FormListItem key={'formlist-'+i} resourceSet={this.props.resourceSet} parent={this.props.parent} childIndex={i} meta={meta}></FormListItem>);
+  	});
+    if(this.state.addForm) {
+      return (
+        <div>
+          <div>{itemComponents}</div>
+          <FormListItem key={'formlist'} resourceSet={this.props.resourceSet} meta={meta} addElementHandler={this.addElementHandler}></FormListItem>
+          <div><button onClick={this.cancelHandler}>Cancel</button></div>
+        </div>
+      );
+    }else{
+      return (
+        <div>
+          <div>{itemComponents}</div>
+          <div><button onClick={this.addHandler}>Add</button></div>
+        </div>
+      );
+    }
   }
 });
 

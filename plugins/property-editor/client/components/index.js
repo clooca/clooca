@@ -22,6 +22,7 @@ let PropertyEditor = React.createClass({
         model: model
       });
       model.on('change', function(f) {
+        console.log(f);
         setState({
           model: model
         });

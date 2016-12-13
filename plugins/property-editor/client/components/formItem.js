@@ -12,29 +12,33 @@ let FormItem = React.createClass({
 
   componentWillMount: function() {
     var setState = this.setState.bind(this);
-    //this.refreshState(this.props);
   },
 
   componentWillReceiveProps: function(nextProps) {
-    //this.refreshState(nextProps);
   },
 
   getValue: function(props) {
     let meta = props.meta;
+    let parent = props.parent;
+    let childName = props.childName;
+    let childIndex = props.childIndex;
+    let eType = meta.get('eType').get('name');
 
     let value = '';
-    if(meta.get('eType').get('name') == 'EString') {
-      value = props.parent.get(props.childName);
-    }else if(meta.get('eType').get('name') == 'EInt') {
-      value = props.parent.get(props.childName);
-    }else if(meta.get('eType').get('name') == 'EBoolean') {
-      value = props.parent.get(props.childName);
-    }else if(meta.get('eType').get('name') == 'EDouble') {
-      value = props.parent.get(props.childName);
-    }else if(meta.get('eType').get('name') == 'EDate') {
-      value = props.parent.get(props.childName);
+    var simpleETypes = ['EString', 'EInt', 'EBoolean', 'EDouble', 'EDate'];
+    if(simpleETypes.indexOf(eType) >= 0) {
+      if(childName) {
+        value = parent.get(childName);
+      }else{
+        value = parent.at(childIndex);
+      }
     }else{
-      let item = props.parent.get(props.childName);
+      let item = null;
+      if(childName) {
+        item = parent.get(childName);
+      }else{
+        item = parent.at(childIndex);
+      }
       if(item) {
         if(Array.isArray(item)) {
           value = item.map((i)=>{
@@ -116,7 +120,7 @@ let FormItem = React.createClass({
         inputElem = (<select onChange={this.updateRelation} value={currentValue}>{options}</select>);
       }
     }else{
-      inputElem = (<FormList meta={meta} list={item}></FormList>);
+      inputElem = (<FormList resourceSet={this.props.resourceSet} meta={meta} parent={item}></FormList>);
     }
     return (
     	<div style={{overflow:'hidden', clear:'hidden',borderBottom:'1px solid #777'}}><span style={{float:'left',width:'200px'}}>{label}</span><div style={{float:'left'}}>{inputElem}</div></div>
