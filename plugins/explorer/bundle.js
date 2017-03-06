@@ -20800,7 +20800,7 @@ var ExplorerComponent = React.createClass({
     return React.createElement(
       'div',
       null,
-      this.state.resource ? React.createElement(Resource, { resource: this.state.resource, resourceSet: this.state.resourceSet }) : React.createElement('div', null)
+      this.state.resource ? React.createElement(Resource, { resource: this.state.resource, resourceSet: this.state.resourceSet, modelExplorer: this.props.modelExplorer }) : React.createElement('div', null)
     );
   }
 });
@@ -20859,11 +20859,12 @@ var ExplorerItem = React.createClass({
   },
 
   select: function select() {
-    clooca.getPlugin('property').request('selectObject', this.props.item).then(function () {});
+    this.props.modelExplorer.fireSelectEvent(this.props.item);
   },
 
   render: function render() {
     var resourceSet = this.props.resourceSet;
+    var modelExplorer = this.props.modelExplorer;
     var offset = this.props.depth || 0;
     var style = {
       "marginLeft": offset + "px"
@@ -20877,7 +20878,7 @@ var ExplorerItem = React.createClass({
 
     var ExplorerItems = items.reduce(function (components, children) {
       return components.concat(children.map(function (child) {
-        return React.createElement(ExplorerItem, { key: child.get('name'), depth: offset + 12, item: child, resourceSet: resourceSet });
+        return React.createElement(ExplorerItem, { key: child.get('name'), depth: offset + 12, item: child, resourceSet: resourceSet, modelExplorer: modelExplorer });
       }));
     }, []);
     var isLeaf = ExplorerItems.length == 0;
@@ -20981,7 +20982,7 @@ var ExplorerComponent = React.createClass({
     var content = React.createElement('div', null);
     if (this.state.model && this.state.model.size() > 0) {
       content = this.state.model.map(function (model) {
-        return React.createElement(ExplorerItem, { item: model, resourceSet: _this2.props.resourceSet });
+        return React.createElement(ExplorerItem, { item: model, resourceSet: _this2.props.resourceSet, modelExplorer: _this2.props.modelExplorer });
       });
     } else {
       content = React.createElement(
@@ -21012,12 +21013,38 @@ var ReactDOM = require('react-dom');
 
 window.clooca = window.parent.window.clooca;
 
+function ModelExplorer() {
+	this.callbacks = [];
+}
+
+ModelExplorer.prototype.hasMethod = function (methodName) {
+	return !!this[methodName];
+};
+
+ModelExplorer.prototype.recvRequest = function (methodName, params) {
+	return this[methodName](params);
+};
+
+ModelExplorer.prototype.onSelect = function (callback) {
+	this.callbacks.push(callback);
+};
+
+ModelExplorer.prototype.fireSelectEvent = function (elem) {
+	this.callbacks.forEach(function (cb) {
+		cb(elem);
+	});
+};
+
+var modelExplorer = new ModelExplorer();
+
+clooca.registerPlugin('explorer', modelExplorer);
+
 var ExplorerComponent = require('./components/explorer');
 
 var mainEl = React.createElement(
-  'div',
-  null,
-  React.createElement(ExplorerComponent, null)
+	'div',
+	null,
+	React.createElement(ExplorerComponent, { modelExplorer: modelExplorer })
 );
 ReactDOM.render(mainEl, document.getElementById('main'));
 
