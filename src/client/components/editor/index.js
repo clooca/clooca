@@ -11,6 +11,7 @@ var SplitPane = require('react-split-pane');
 var TabAction = require('../../actions/tab');
 var ModalAction = require('../../actions/modal');
 var EditorStore = require('../../store/editor');
+var AlertModal = require('../modal/alert');
 
 TabAction.register(EditorStore);
 ModalAction.register(EditorStore);
@@ -19,7 +20,9 @@ let CoreComponent = React.createClass({
 
   getInitialState: function () {
     return {
-      pluginNames: []
+      pluginNames: [],
+      isOpen: false,
+      errorMessage: ''
     };
   },
 
@@ -32,7 +35,12 @@ let CoreComponent = React.createClass({
       setState({
         pluginNames: pluginNames
       })
-    });
+    }).catch((err) => {
+      setState({
+        isOpen: true,
+        errorMessage: err.message
+      });
+    })
 
     EditorStore.observe((data) => {
       setState({
@@ -48,6 +56,13 @@ let CoreComponent = React.createClass({
   },
 
   componentWillUnmount : function() {
+  },
+
+  onCloseAlert: function() {
+    this.setState({
+      isOpen: false,
+      errorMessage: ''
+    });
   },
 
   changePlugin: function(pluginName) {
@@ -73,6 +88,7 @@ let CoreComponent = React.createClass({
           <div className="core-main">
           </div>
         </SplitPane>
+        <AlertModal isOpen={this.state.isOpen} title={"Model Loading Error"} message={this.state.errorMessage} onClose={this.onCloseAlert} ></AlertModal>
     	</div>
     );
   }

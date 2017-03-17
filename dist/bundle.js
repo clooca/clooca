@@ -4121,6 +4121,7 @@ Ecore.JSON = {
                 var parent = resolving.parent,
                     feature = resolving.feature,
                     value = resolving.value;
+                    console.log(resolving)
 
                 if (feature.get('upperBound') === 1) {
                     setReference(parent, feature, value, false);
@@ -41417,7 +41418,7 @@ clooca.prototype.registerPlugin = function (pluginName, pluginModule) {
 
 module.exports = clooca;
 
-},{"../common/core/model":331,"../common/core/pluginInterface":332,"../common/core/registry":334,"../common/storage/adaptor/localStorage":336,"./actions/modal":309}],312:[function(require,module,exports){
+},{"../common/core/model":332,"../common/core/pluginInterface":333,"../common/core/registry":335,"../common/storage/adaptor/localStorage":337,"./actions/modal":309}],312:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -41594,7 +41595,7 @@ var Header = React.createClass({
 
 module.exports = Header;
 
-},{"../../../common/core/repository":335,"../../actions/modal":309,"../../actions/tab":310,"../menu":316,"../menu/item":317,"../modal/addContainment":318,"../modal/addObject":319,"../modal/addTab":320,"../modal/exportJSON":321,"../modal/importJSON":322,"./resources":314,"querystring":85,"react":286,"react-router":123}],313:[function(require,module,exports){
+},{"../../../common/core/repository":336,"../../actions/modal":309,"../../actions/tab":310,"../menu":316,"../menu/item":317,"../modal/addContainment":318,"../modal/addObject":319,"../modal/addTab":320,"../modal/exportJSON":322,"../modal/importJSON":323,"./resources":314,"querystring":85,"react":286,"react-router":123}],313:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -41610,6 +41611,7 @@ var SplitPane = require('react-split-pane');
 var TabAction = require('../../actions/tab');
 var ModalAction = require('../../actions/modal');
 var EditorStore = require('../../store/editor');
+var AlertModal = require('../modal/alert');
 
 TabAction.register(EditorStore);
 ModalAction.register(EditorStore);
@@ -41620,7 +41622,9 @@ var CoreComponent = React.createClass({
 
   getInitialState: function getInitialState() {
     return {
-      pluginNames: []
+      pluginNames: [],
+      isOpen: false,
+      errorMessage: ''
     };
   },
 
@@ -41632,6 +41636,11 @@ var CoreComponent = React.createClass({
     }).then(function (pluginNames) {
       setState({
         pluginNames: pluginNames
+      });
+    }).catch(function (err) {
+      setState({
+        isOpen: true,
+        errorMessage: err.message
       });
     });
 
@@ -41647,6 +41656,13 @@ var CoreComponent = React.createClass({
   componentDidUpdate: function componentDidUpdate() {},
 
   componentWillUnmount: function componentWillUnmount() {},
+
+  onCloseAlert: function onCloseAlert() {
+    this.setState({
+      isOpen: false,
+      errorMessage: ''
+    });
+  },
 
   changePlugin: function changePlugin(pluginName) {
     console.log(pluginName);
@@ -41676,14 +41692,15 @@ var CoreComponent = React.createClass({
           React.createElement(TabComponent, { editorSettings: this.state.editorSettings })
         ),
         React.createElement('div', { className: 'core-main' })
-      )
+      ),
+      React.createElement(AlertModal, { isOpen: this.state.isOpen, title: "Model Loading Error", message: this.state.errorMessage, onClose: this.onCloseAlert })
     );
   }
 });
 
 module.exports = CoreComponent;
 
-},{"../../../common/core/project":333,"../../actions/modal":309,"../../actions/tab":310,"../../pluginLoader":329,"../../store/editor":330,"../plugin/item":323,"../plugin/panel":324,"../tab":327,"./header":312,"react":286,"react-split-pane":132}],314:[function(require,module,exports){
+},{"../../../common/core/project":334,"../../actions/modal":309,"../../actions/tab":310,"../../pluginLoader":330,"../../store/editor":331,"../modal/alert":321,"../plugin/item":324,"../plugin/panel":325,"../tab":328,"./header":312,"react":286,"react-split-pane":132}],314:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -41801,7 +41818,7 @@ var IndexComponent = React.createClass({
 
 module.exports = IndexComponent;
 
-},{"./editor":313,"./project/list":325,"./project/settings":326,"react":286,"react-router":123}],316:[function(require,module,exports){
+},{"./editor":313,"./project/list":326,"./project/settings":327,"react":286,"react-router":123}],316:[function(require,module,exports){
 "use strict";
 
 var React = require('react');
@@ -42339,6 +42356,80 @@ var customStyles = {
   }
 };
 
+var AlertModal = React.createClass({
+  displayName: 'AlertModal',
+
+
+  getInitialState: function getInitialState() {
+    return {
+      modalIsOpen: false
+    };
+  },
+
+  afterOpenModal: function afterOpenModal() {},
+
+  closeModal: function closeModal() {
+    this.props.onClose();
+  },
+
+  okModal: function okModal() {
+    this.props.onClose();
+  },
+
+  componentWillReceiveProps: function componentWillReceiveProps(nextProps) {},
+
+  render: function render() {
+    return React.createElement(
+      'div',
+      null,
+      React.createElement(
+        Modal,
+        {
+          isOpen: this.props.isOpen,
+          onAfterOpen: this.afterOpenModal,
+          onRequestClose: this.closeModal,
+          style: customStyles },
+        React.createElement(
+          'h3',
+          null,
+          this.props.title
+        ),
+        React.createElement(
+          'div',
+          null,
+          this.props.message
+        ),
+        React.createElement(
+          'button',
+          { onClick: this.okModal },
+          'OK'
+        )
+      )
+    );
+  }
+});
+
+module.exports = AlertModal;
+
+},{"react":286,"react-modal":93}],322:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var Modal = require('react-modal');
+
+var customStyles = {
+  content: {
+    top: '50%',
+    left: '50%',
+    right: 'auto',
+    bottom: 'auto',
+    marginRight: '-50%',
+    transform: 'translate(-50%, -50%)',
+    backgroundColor: '#272525',
+    color: '#fff'
+  }
+};
+
 var ExportJSONModal = React.createClass({
   displayName: 'ExportJSONModal',
 
@@ -42405,7 +42496,7 @@ var ExportJSONModal = React.createClass({
 
 module.exports = ExportJSONModal;
 
-},{"react":286,"react-modal":93}],322:[function(require,module,exports){
+},{"react":286,"react-modal":93}],323:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -42503,7 +42594,7 @@ var ImportJSONModal = React.createClass({
 
 module.exports = ImportJSONModal;
 
-},{"react":286,"react-modal":93}],323:[function(require,module,exports){
+},{"react":286,"react-modal":93}],324:[function(require,module,exports){
 "use strict";
 
 var React = require('react');
@@ -42541,7 +42632,7 @@ var PluginItem = React.createClass({
 
 module.exports = PluginItem;
 
-},{"react":286}],324:[function(require,module,exports){
+},{"react":286}],325:[function(require,module,exports){
 "use strict";
 
 var React = require('react');
@@ -42573,7 +42664,7 @@ var Panel = React.createClass({
 
 module.exports = Panel;
 
-},{"react":286}],325:[function(require,module,exports){
+},{"react":286}],326:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -42712,7 +42803,7 @@ var ProjectList = React.createClass({
 
 module.exports = ProjectList;
 
-},{"../../../common/core/project":333,"react":286,"react-router":123}],326:[function(require,module,exports){
+},{"../../../common/core/project":334,"react":286,"react-router":123}],327:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -42829,7 +42920,7 @@ var ProjectSettings = React.createClass({
 
 module.exports = ProjectSettings;
 
-},{"../../../common/storage/project":337,"react":286,"react-router":123}],327:[function(require,module,exports){
+},{"../../../common/storage/project":338,"react":286,"react-router":123}],328:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -42921,7 +43012,7 @@ var TabComponent = React.createClass({
 
 module.exports = TabComponent;
 
-},{"../plugin/panel":324,"react":286,"react-tabs":143}],328:[function(require,module,exports){
+},{"../plugin/panel":325,"react":286,"react-tabs":143}],329:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -42965,7 +43056,7 @@ clooca.getCC().request('clooca', 'getSettings', {}).then((_settings) => {
 });
 */
 
-},{"../common/core/project":333,"../common/core/registry":334,"./clooca":311,"./components":315,"./pluginLoader":329,"react":286,"react-dom":86}],329:[function(require,module,exports){
+},{"../common/core/project":334,"../common/core/registry":335,"./clooca":311,"./components":315,"./pluginLoader":330,"react":286,"react-dom":86}],330:[function(require,module,exports){
 'use strict';
 
 var ajax = require('../common/utils/ajax');
@@ -42996,7 +43087,7 @@ module.exports = function (cb) {
     });
 };
 
-},{"../common/utils/ajax":339}],330:[function(require,module,exports){
+},{"../common/utils/ajax":340}],331:[function(require,module,exports){
 'use strict';
 
 var defaultData = {
@@ -43039,7 +43130,7 @@ module.exports = {
 	}
 };
 
-},{}],331:[function(require,module,exports){
+},{}],332:[function(require,module,exports){
 'use strict';
 
 var Ecore = require('ecore');
@@ -43151,7 +43242,7 @@ ModelInterface.prototype.fireUpdate = function (model) {
 
 module.exports = ModelInterface;
 
-},{"ecore":12,"eventemitter2":14,"uuid":306}],332:[function(require,module,exports){
+},{"ecore":12,"eventemitter2":14,"uuid":306}],333:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -43201,7 +43292,7 @@ if ('browser' !== process.title) {
 module.exports = PluginInterface;
 
 }).call(this,require('_process'))
-},{"../utils/ajax":339,"./registry":334,"_process":80}],333:[function(require,module,exports){
+},{"../utils/ajax":340,"./registry":335,"_process":80}],334:[function(require,module,exports){
 'use strict';
 
 var projectLoader = require('../../storage/project');
@@ -43278,7 +43369,7 @@ module.exports = {
 	}
 };
 
-},{"../../storage/project":337,"../../storage/repository":338}],334:[function(require,module,exports){
+},{"../../storage/project":338,"../../storage/repository":339}],335:[function(require,module,exports){
 "use strict";
 
 function addModule(moduleName, moduleObject) {
@@ -43295,7 +43386,7 @@ module.exports = {
 	getModule: getModule
 };
 
-},{}],335:[function(require,module,exports){
+},{}],336:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -43307,7 +43398,7 @@ module.exports = {
 	}
 };
 
-},{}],336:[function(require,module,exports){
+},{}],337:[function(require,module,exports){
 'use strict';
 
 module.exports = function (settings) {
@@ -43347,7 +43438,7 @@ module.exports = function (settings) {
 	};
 };
 
-},{}],337:[function(require,module,exports){
+},{}],338:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -43365,7 +43456,7 @@ module.exports = {
 	}
 };
 
-},{}],338:[function(require,module,exports){
+},{}],339:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -43377,7 +43468,7 @@ module.exports = {
 	}
 };
 
-},{}],339:[function(require,module,exports){
+},{}],340:[function(require,module,exports){
 (function (process){
 "use strict";
 
@@ -43569,4 +43660,4 @@ function createCORSRequest(method, url) {
 }
 
 }).call(this,require('_process'))
-},{"_process":80,"http":294,"https":60,"querystring":85,"url":302}]},{},[328]);
+},{"_process":80,"http":294,"https":60,"querystring":85,"url":302}]},{},[329]);
