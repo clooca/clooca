@@ -37,7 +37,7 @@ let ExplorerComponent = React.createClass({
   render: function () {
     return (
       <div>
-      {this.state.resource?(<Resource resource={this.state.resource} resourceSet={this.state.resourceSet}></Resource>):
+      {this.state.resource?(<Resource resource={this.state.resource} resourceSet={this.state.resourceSet} modelExplorer={this.props.modelExplorer}></Resource>):
       (<div></div>)}
       </div>
     );

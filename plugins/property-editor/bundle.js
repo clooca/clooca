@@ -21122,6 +21122,7 @@ var PropertyEditor = React.createClass({
     setState({
       resourceSet: resourceSet
     });
+    this.props.propertyEditor.ready();
     this.props.propertyEditor.on('select', function (model) {
       setState({
         model: model
@@ -21216,6 +21217,14 @@ var PropertyEditorComponent = require('./components');
 
 function PropertyEditor() {}
 
+PropertyEditor.prototype.ready = function (methodName) {
+	var _this = this;
+
+	clooca.getPlugin('explorer').request('onSelect', function (elem) {
+		_this.selectObject(elem);
+	});
+};
+
 PropertyEditor.prototype.hasMethod = function (methodName) {
 	return !!this[methodName];
 };
@@ -21225,10 +21234,10 @@ PropertyEditor.prototype.recvRequest = function (methodName, params) {
 };
 
 PropertyEditor.prototype.selectObject = function (object) {
-	var _this = this;
+	var _this2 = this;
 
 	return new Promise(function (resolve, reject) {
-		resolve(_this.cb(object));
+		resolve(_this2.cb(object));
 	});
 };
 

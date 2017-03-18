@@ -13,6 +13,13 @@ function PropertyEditor() {
 
 }
 
+PropertyEditor.prototype.ready = function(methodName) {
+	clooca.getPlugin('explorer').request('onSelect', (elem) => {
+		this.selectObject(elem);
+	});
+};
+
+
 PropertyEditor.prototype.hasMethod = function(methodName) {
 	return !!this[methodName];
 };

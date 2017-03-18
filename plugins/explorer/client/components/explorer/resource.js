@@ -58,7 +58,7 @@ let ExplorerComponent = React.createClass({
     let content = (<div/>);
     if(this.state.model && this.state.model.size() > 0) {
       content = this.state.model.map((model)=>{
-        return (<ExplorerItem item={model} resourceSet={this.props.resourceSet}></ExplorerItem>)
+        return (<ExplorerItem item={model} resourceSet={this.props.resourceSet} modelExplorer={this.props.modelExplorer}></ExplorerItem>)
       });
     }else{
       content = (<div><a style={{cursor:'pointer', color:'#333'}} onClick={this.addObject}>Add New Object</a></div>);

@@ -17,6 +17,7 @@ let PropertyEditor = React.createClass({
     setState({
       resourceSet: resourceSet
     });
+    this.props.propertyEditor.ready();
     this.props.propertyEditor.on('select', function(model) {
       setState({
         model: model

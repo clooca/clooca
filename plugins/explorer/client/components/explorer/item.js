@@ -50,13 +50,12 @@ let ExplorerItem = React.createClass({
   },
 
   select: function() {
-    clooca.getPlugin('property').request('selectObject', this.props.item).then(() => {
-
-    });
+    this.props.modelExplorer.fireSelectEvent(this.props.item);
   },
 
   render: function () {
     let resourceSet = this.props.resourceSet;
+    let modelExplorer = this.props.modelExplorer;
   	var offset = this.props.depth || 0;
   	var style = {
   		"marginLeft": offset+"px"
@@ -70,7 +69,7 @@ let ExplorerItem = React.createClass({
 
   	var ExplorerItems = items.reduce(function(components, children) {
       return components.concat(children.map(function(child) {
-        return (<ExplorerItem key={child.get('name')} depth={offset+12} item={child} resourceSet={resourceSet}></ExplorerItem>)
+        return (<ExplorerItem key={child.get('name')} depth={offset+12} item={child} resourceSet={resourceSet} modelExplorer={modelExplorer}></ExplorerItem>)
       }))
   	}, []);
     var isLeaf = (ExplorerItems.length == 0);
