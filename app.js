@@ -5,14 +5,14 @@ var path = require('path');
 var nopt = require("nopt");
 var express = require('express');
 var bodyParser = require('body-parser');
-var loader = require('./src/server/core/pluginLoader');
+var loader = require('./lib/server/core/pluginLoader');
 var ejs = require('ejs');
-var ccRestMiddleware = require('./src/server/core/cc/rest');
-var registry = require('./src/common/core/registry');
+var ccRestMiddleware = require('./lib/server/core/cc/rest');
+var registry = require('./lib/common/core/registry');
 
-var CloocaModule = require('./src/server/core/clooca');
+var CloocaModule = require('./lib/server/core/clooca');
 
-var loadSettings = require('./src/server/core/settingsLoader');
+var loadSettings = require('./lib/server/core/settingsLoader');
 
 
 var knownOpts = {

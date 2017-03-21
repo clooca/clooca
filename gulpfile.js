@@ -4,33 +4,16 @@ var gutil      = require('gulp-util');
 var path       = require('path');
 var fs         = require('fs');
 var browserify = require('browserify');
+var babel      = require('gulp-babel');
+var sourcemaps = require('gulp-sourcemaps');
 var watchify   = require('watchify');
 var source     = require('vinyl-source-stream');
 var buffer     = require('vinyl-buffer');
+var clean      = require('gulp-clean');
+var runSequence = require('run-sequence');
+var webpack    = require("webpack");
+var webpackConfig = require('./webpack.config');
 var appDir = __dirname;
-
-function build(src, dist, is_watch) {
-  var b = browserify(path.join(appDir, src || './src/index.js'), {}).transform("babelify", {presets: ['react', 'es2015']});
-
-  if(is_watch) b.plugin(watchify);
-
-  if(is_watch) {
-    b.on('update', bundleFunction);
-    b.on('log', gutil.log);
-  }
-  return bundleFunction();
-
-  function bundleFunction() {
-    if(is_watch) return b.bundle().on("error", function (err) { console.log("Error : " + err.message); })
-                          .pipe(fs.createWriteStream(path.join(appDir, (dist || 'dist')+'/bundle.js')));
-
-    else return b.bundle().on("error", function (err) { console.log("Error : " + err.message); })
-    .pipe(source('bundle.js'))
-    //.pipe(buffer())
-    //.pipe(uglify({mangle: false}))
-    .pipe(gulp.dest(path.join(appDir, dist || 'dist')));
-  }
-}
 
 gulp.task('webserver', function() {
   gulp.src('dist')
@@ -41,32 +24,74 @@ gulp.task('webserver', function() {
     }));
 });
 
-function buildPlugin(name, isWatch) {
-  build('./plugins/'+name+'/client/index.js', './plugins/'+name, isWatch);
+gulp.task('clean', () => {
+  return gulp.src(['lib'], { read: false })
+    .pipe(clean());
+});
+
+
+function getPluginConfig(src, dest) {
+  return {
+    entry: {
+        client: src
+    },
+    output: {
+        path: dest,
+        filename: 'bundle.js'
+    },
+    module: {
+        loaders: [
+            {
+                loader: 'babel-loader',
+                exclude: /node_modules/,
+                test: /\.js[x]?$/,
+                query: {
+                    cacheDirectory: true,
+                    presets: ['react', 'es2017']
+                }
+            }
+        ]
+    }  
+  }  
 }
 
-function buildPlugins(isWatch) {
-  buildPlugin('sample', isWatch);
-  buildPlugin('explorer', isWatch);
-  buildPlugin('property-editor', isWatch);
-  buildPlugin('diagram-editor', isWatch);
-  buildPlugin('code-generator', isWatch);
-  buildPlugin('simulator', isWatch);
-  buildPlugin('gme', isWatch);  
+function buildPlugin(name) {
+  return new Promise(function(resolve, reject) {
+    webpack(getPluginConfig('./plugins/'+name+'/client/index.js', './plugins/'+name), function() {
+      resolve();
+    });
+  });
 }
 
-gulp.task('watch-plugins', function () {
-  buildPlugins(true);
+var plugins = ['sample', 'explorer', 'property-editor', 'diagram-editor', 'code-generator', 'simulator', 'gme'];
+
+gulp.task('build-plugins', function (done) {
+  Promise.all(plugins.map((name) => {
+    return buildPlugin(name)
+  })).then(() => {
+    done();
+  })
 });
 
-gulp.task('build-plugins', function () {
-  buildPlugins(false);
+gulp.task('babel', () => {
+  return gulp.src('./src/**/*.js')
+    .pipe(sourcemaps.init())
+    .pipe(babel({presets: ['react','es2015']}))
+    .pipe(sourcemaps.write('.'))
+    .pipe(gulp.dest('lib'));
 });
 
-gulp.task('watch', ['watch-plugins'], function () {
-  return build('./src/client/index.js', 'dist', true);
+gulp.task('webpack', (done) => {
+  webpack(webpackConfig, function() {
+    done();
+  });
 });
 
-gulp.task('build', ['build-plugins'], function () {
-  return build('./src/client/index.js', 'dist', false);
+gulp.task('watch', ['build'], function(){
+  gulp.watch(["src/**/*.js"],["babel"]);
+  gulp.watch(["lib/**/*.js"],["webpack"]);
+});
+
+gulp.task('build', ['build-plugins'], (done) => {
+  runSequence('clean', 'babel', 'webpack', done);
 });

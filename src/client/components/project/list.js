@@ -17,6 +17,7 @@ let ProjectList = React.createClass({
 
   refresh: function() {
   	let setState = this.setState.bind(this);
+    console.log(clooca);
   	project.list(clooca).then((projects)=>{
   		setState({
   			projects: projects
