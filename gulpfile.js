@@ -43,40 +43,30 @@ gulp.task('webserver', function() {
 
 function buildPlugin(name, isWatch) {
   build('./plugins/'+name+'/client/index.js', './plugins/'+name, isWatch);
-
 }
 
-gulp.task('plugins', function () {
-  buildPlugin('sample', true);
-  buildPlugin('explorer', true);
-  buildPlugin('property-editor', true);
-  buildPlugin('diagram-editor', true);
-  buildPlugin('code-generator', true);
-  buildPlugin('simulator', true);
-  buildPlugin('gme', true);
+function buildPlugins(isWatch) {
+  buildPlugin('sample', isWatch);
+  buildPlugin('explorer', isWatch);
+  buildPlugin('property-editor', isWatch);
+  buildPlugin('diagram-editor', isWatch);
+  buildPlugin('code-generator', isWatch);
+  buildPlugin('simulator', isWatch);
+  buildPlugin('gme', isWatch);  
+}
+
+gulp.task('watch-plugins', function () {
+  buildPlugins(true);
 });
 
-gulp.task('watch', ['plugins'], function () {
+gulp.task('build-plugins', function () {
+  buildPlugins(false);
+});
+
+gulp.task('watch', ['watch-plugins'], function () {
   return build('./src/client/index.js', 'dist', true);
 });
 
-gulp.task('build', function () {
-  return build('development');
-});
-
-gulp.task('heroku:development', function () {
-  return build('development');
-});
-
-gulp.task('heroku:staging', function () {
-  return build('staging');
-});
-
-gulp.task('heroku:uhuru', function () {
-  return build('uhuru');
-});
-
-
-gulp.task('heroku:production', function () {
-  return build('production');
+gulp.task('build', ['build-plugins'], function () {
+  return build('./src/client/index.js', 'dist', false);
 });
