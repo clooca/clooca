@@ -11,7 +11,7 @@ describe('common/model', function() {
 	var ModelInterface = null;
 
 	beforeEach(function() {
-		ModelInterface = require(moduleName);
+		ModelInterface = require(moduleName).default;
 	});
 
 	afterEach(function() {

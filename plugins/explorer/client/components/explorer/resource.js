@@ -2,7 +2,7 @@ var React = require('react');
 var ExplorerItem = require('./item');
 var transformer = require('../../transformer');
 
-let ExplorerComponent = React.createClass({
+let ResourceComponent = React.createClass({
 
   getInitialState: function () {
     return {
@@ -57,8 +57,8 @@ let ExplorerComponent = React.createClass({
   render: function () {
     let content = (<div/>);
     if(this.state.model && this.state.model.size() > 0) {
-      content = this.state.model.map((model)=>{
-        return (<ExplorerItem item={model} resourceSet={this.props.resourceSet} modelExplorer={this.props.modelExplorer}></ExplorerItem>)
+      content = this.state.model.map((model, index)=>{
+        return (<ExplorerItem key={index} item={model} resourceSet={this.props.resourceSet} modelExplorer={this.props.modelExplorer}></ExplorerItem>)
       });
     }else{
       content = (<div><a style={{cursor:'pointer', color:'#333'}} onClick={this.addObject}>Add New Object</a></div>);
@@ -71,4 +71,4 @@ let ExplorerComponent = React.createClass({
   }
 });
 
-module.exports = ExplorerComponent;
+module.exports = ResourceComponent;

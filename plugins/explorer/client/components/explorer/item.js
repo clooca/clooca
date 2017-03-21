@@ -68,8 +68,8 @@ let ExplorerItem = React.createClass({
     });*/
 
   	var ExplorerItems = items.reduce(function(components, children) {
-      return components.concat(children.map(function(child) {
-        return (<ExplorerItem key={child.get('name')} depth={offset+12} item={child} resourceSet={resourceSet} modelExplorer={modelExplorer}></ExplorerItem>)
+      return components.concat(children.map(function(child, index) {
+        return (<ExplorerItem key={child.get('name') + index} depth={offset+12} item={child} resourceSet={resourceSet} modelExplorer={modelExplorer}></ExplorerItem>)
       }))
   	}, []);
     var isLeaf = (ExplorerItems.length == 0);

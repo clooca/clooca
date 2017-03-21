@@ -1,9 +1,9 @@
+import Clooca from './clooca'
 var React = require('react');
 var ReactDOM = require('react-dom');
 
 var IndexComponent = require('./components');
 var pluginLoader = require('./pluginLoader');
-var Clooca = require('./clooca');
 var registry = require('../common/core/registry');
 
 var project = require('../common/core/project');

@@ -113,9 +113,9 @@ let FormItem = React.createClass({
       }else if(eTypeName == 'EDate') {
       }else{
         let elements = this.props.resourceSet.elements(meta.get('eType').get('name'));
-        let options = elements.map((e) => {
+        let options = elements.map((e, index) => {
           let containerName = e.eContainer.get('name');
-          return (<option value={e.get('name')}>{containerName + ':' + e.get('name')}</option>);
+          return (<option key={containerName+index} value={e.get('name')}>{containerName + ':' + e.get('name')}</option>);
         });
         inputElem = (<select onChange={this.updateRelation} value={currentValue}>{options}</select>);
       }
