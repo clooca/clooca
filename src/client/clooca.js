@@ -3,9 +3,11 @@ var PluginInterface = require('../common/core/pluginInterface');
 var registry = require('../common/core/registry');
 var ModalAction = require('./actions/modal');
 var LocalStorage = require('../common/storage/adaptor/localStorage');
+let EventEmitter = require("events").EventEmitter;
 
-export default class {
+export default class extends EventEmitter {
 	constructor() {
+		super();
 		this.registerdPlugins = {};
 		this.settings = null;
 	}
@@ -42,6 +44,10 @@ export default class {
 		return new PluginInterface(name);
 	}
 
+	isPluginLoaded(name) {
+		return !!registry.getModule(name);
+	}
+
 	getStorage() {
 		return LocalStorage(this.settings);
 	}
@@ -52,6 +58,7 @@ export default class {
 
 	registerPlugin(pluginName, pluginModule) {
 		registry.addModule(pluginName, pluginModule);
+		this.emit('pluginRegister', {pluginName: pluginName});
 	}
 
 }

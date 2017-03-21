@@ -11182,11 +11182,11 @@ var FormItem = React.createClass({
         inputElem = React.createElement('input', { onChange: updateProperties, type: 'checkbox', checked: currentValue });
       } else if (eTypeName == 'EDouble') {} else if (eTypeName == 'EDate') {} else {
         var elements = this.props.resourceSet.elements(meta.get('eType').get('name'));
-        var options = elements.map(function (e) {
+        var options = elements.map(function (e, index) {
           var containerName = e.eContainer.get('name');
           return React.createElement(
             'option',
-            { value: e.get('name') },
+            { key: containerName + index, value: e.get('name') },
             containerName + ':' + e.get('name')
           );
         });
@@ -22084,13 +22084,7 @@ var PropertyEditorComponent = __webpack_require__(88);
 
 function PropertyEditor() {}
 
-PropertyEditor.prototype.ready = function (methodName) {
-	var _this = this;
-
-	clooca.getPlugin('explorer').request('onSelect', function (elem) {
-		_this.selectObject(elem);
-	});
-};
+PropertyEditor.prototype.ready = function (methodName) {};
 
 PropertyEditor.prototype.hasMethod = function (methodName) {
 	return !!this[methodName];
@@ -22101,10 +22095,10 @@ PropertyEditor.prototype.recvRequest = function (methodName, params) {
 };
 
 PropertyEditor.prototype.selectObject = function (object) {
-	var _this2 = this;
+	var _this = this;
 
 	return new Promise(function (resolve, reject) {
-		resolve(_this2.cb(object));
+		resolve(_this.cb(object));
 	});
 };
 
@@ -22113,6 +22107,22 @@ PropertyEditor.prototype.on = function (event, cb) {
 };
 
 var propertyEditor = new PropertyEditor();
+
+if (clooca.isPluginLoaded('explorer')) {
+	regOnSelectHandler();
+} else {
+	clooca.on('pluginRegister', function (e) {
+		if (e.pluginName == 'explorer') {
+			regOnSelectHandler();
+		}
+	});
+}
+
+function regOnSelectHandler() {
+	clooca.getPlugin('explorer').request('onSelect', function (elem) {
+		propertyEditor.selectObject(elem);
+	});
+}
 
 clooca.registerPlugin('property', propertyEditor);
 

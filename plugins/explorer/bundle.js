@@ -11156,8 +11156,8 @@ var ExplorerItem = React.createClass({
 
 
     var ExplorerItems = items.reduce(function (components, children) {
-      return components.concat(children.map(function (child) {
-        return React.createElement(ExplorerItem, { key: child.get('name'), depth: offset + 12, item: child, resourceSet: resourceSet, modelExplorer: modelExplorer });
+      return components.concat(children.map(function (child, index) {
+        return React.createElement(ExplorerItem, { key: child.get('name') + index, depth: offset + 12, item: child, resourceSet: resourceSet, modelExplorer: modelExplorer });
       }));
     }, []);
     var isLeaf = ExplorerItems.length == 0;
@@ -11207,8 +11207,8 @@ var React = __webpack_require__(26);
 var ExplorerItem = __webpack_require__(90);
 var transformer = __webpack_require__(35);
 
-var ExplorerComponent = React.createClass({
-  displayName: 'ExplorerComponent',
+var ResourceComponent = React.createClass({
+  displayName: 'ResourceComponent',
 
 
   getInitialState: function getInitialState() {
@@ -11264,8 +11264,8 @@ var ExplorerComponent = React.createClass({
 
     var content = React.createElement('div', null);
     if (this.state.model && this.state.model.size() > 0) {
-      content = this.state.model.map(function (model) {
-        return React.createElement(ExplorerItem, { item: model, resourceSet: _this2.props.resourceSet, modelExplorer: _this2.props.modelExplorer });
+      content = this.state.model.map(function (model, index) {
+        return React.createElement(ExplorerItem, { key: index, item: model, resourceSet: _this2.props.resourceSet, modelExplorer: _this2.props.modelExplorer });
       });
     } else {
       content = React.createElement(
@@ -11286,7 +11286,7 @@ var ExplorerComponent = React.createClass({
   }
 });
 
-module.exports = ExplorerComponent;
+module.exports = ResourceComponent;
 
 /***/ }),
 /* 92 */

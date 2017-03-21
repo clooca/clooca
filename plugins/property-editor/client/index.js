@@ -6,17 +6,11 @@ window.clooca = window.parent.window.clooca;
 
 var PropertyEditorComponent = require('./components');
 
-
-
-
 function PropertyEditor() {
 
 }
 
 PropertyEditor.prototype.ready = function(methodName) {
-	clooca.getPlugin('explorer').request('onSelect', (elem) => {
-		this.selectObject(elem);
-	});
 };
 
 
@@ -40,6 +34,22 @@ PropertyEditor.prototype.on = function(event, cb) {
 
 
 var propertyEditor = new PropertyEditor();
+
+if(clooca.isPluginLoaded('explorer')) {
+	regOnSelectHandler();
+}else{
+	clooca.on('pluginRegister', function(e) {
+		if(e.pluginName == 'explorer') {
+			regOnSelectHandler();
+		}
+	});
+}
+
+function regOnSelectHandler() {
+	clooca.getPlugin('explorer').request('onSelect', (elem) => {
+		propertyEditor.selectObject(elem);
+	});
+}
 
 clooca.registerPlugin('property', propertyEditor);
 
