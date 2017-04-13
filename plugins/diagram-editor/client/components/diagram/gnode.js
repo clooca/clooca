@@ -1,11 +1,10 @@
-var React = require('react');
 var Point2D = require('../../math/math2d').Point2D;
 var selectorAction = require('../../actions/selector');
 
 var DRAG_NONE = 0;
 var DRAG_MOVE = 1;
 
-let GNode = React.createClass({
+let AbstractGNode = {
 
   getInitialState: function () {
     return {
@@ -28,6 +27,40 @@ let GNode = React.createClass({
 
   onClick: function() {
     console.log('click');
+    if (window.isSelectMode) {
+      return;
+    }
+    if (!window.isAssociationMode) {
+      return;
+    }
+
+    // クリックされたノードを取得する
+    var node = this.props.node;
+    console.log(window.sourceNode);
+    if (!window.sourceNode) {
+      window.sourceNode = node;
+      return;
+    }
+    var modelInterface = clooca.getModelInterface();
+    var resourceSet = modelInterface.getResourceSet();
+    var model = modelInterface.getCurrentModel();
+    model.each(function(iterator) {
+      // Associationを追加
+      var associations = window.sourceNode.get('associations');
+      var associationEclass = resourceSet.elements('EClass').filter((eClass) => {
+        return eClass.get('name') == 'Association';
+      })[0];
+      var association = associationEclass.create(
+        {
+          name:new Date().getTime(),
+          source:window.sourceNode,
+          target:node
+        }
+      );
+      associations.add(association);
+
+      window.sourceNode = null;
+    });
   },
 
   onMouseDown: function(e) {
@@ -37,6 +70,10 @@ let GNode = React.createClass({
       dragMode: DRAG_MOVE
     });
     selectorAction.select(this.props.id);
+
+    if (!window.isAssociationMode) {
+      window.nodeDragging = true;
+    }
   },
 
   onMouseMove: function(e) {
@@ -61,6 +98,13 @@ let GNode = React.createClass({
 
   onMouseUp: function(e) {
     console.log('onMouseUp');
+
+    if (!window.isAssociationMode) {
+      setTimeout(function() {
+        window.nodeDragging = false;
+      }, 500);
+    }
+
     if(this.state.dragMode == DRAG_MOVE) {
       
     }
@@ -88,20 +132,6 @@ let GNode = React.createClass({
   onMouseOver: function() {
     console.log('onMouseOver');
 
-  },
-
-  render: function () {
-    let node = this.props.node;
-    var transform = "translate("+this.state.x+","+this.state.y+")"
-    return (
-      <g transform={transform}>
-      <rect onClick={this.onClick} onMouseDown={this.onMouseDown} onMouseEnter={this.onMouseEnter} onMouseLeave={this.onMouseLeave} onMouseMove={this.onMouseMove}
-      onMouseOut={this.onMouseOut} onMouseOver={this.onMouseOver} onMouseUp={this.onMouseUp}
-      width="200" height="100" style={{"fill":"rgb(255,255,250)","strokeWidth":3,"stroke":"rgb(0,0,0)"}} ></rect>
-      <text x="6" y="20">{node.get('name')}</text>
-      </g>
-    );
   }
-});
-
-module.exports = GNode;
+};
+module.exports = AbstractGNode;
