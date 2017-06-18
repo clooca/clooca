@@ -57,7 +57,7 @@ function getPluginConfig(src, dest) {
 
 function buildPlugin(name) {
   return new Promise(function(resolve, reject) {
-    webpack(getPluginConfig('./plugins/'+name+'/client/index.js', './plugins/'+name), function() {
+    webpack(getPluginConfig('./plugins/'+name+'/client/index.js', path.resolve( __dirname, './plugins/'+name) ), function() {
       resolve();
     });
   });
@@ -70,6 +70,8 @@ gulp.task('build-plugins', function (done) {
     return buildPlugin(name)
   })).then(() => {
     done();
+  }).catch(function(err) {
+    console.error(err);
   })
 });
 
